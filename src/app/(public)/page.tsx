@@ -9,7 +9,7 @@ import {
   ShoppingCart, Minus, Plus, Check, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { mockProducts, mockCreations } from '@/lib/mock-data';
+import { mockProducts } from '@/lib/mock-data';
 import { formatPrice, generateId, cn } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
@@ -153,7 +153,7 @@ function BurgerModal({
                       <div className="flex items-center gap-2.5">
                         <div
                           className={cn(
-                            'flex h-4.5 w-4.5 items-center justify-center rounded border-2 transition-colors',
+                            'flex h-5 w-5 items-center justify-center rounded border-2 transition-colors',
                             isSelected
                               ? 'border-[#FF6B35] bg-[#FF6B35]'
                               : 'border-[var(--border-color)]',
@@ -205,13 +205,7 @@ function BurgerModal({
             className="w-full"
             onClick={handleAdd}
             disabled={added}
-            icon={
-              added ? (
-                <Check className="h-5 w-5" />
-              ) : (
-                <ShoppingCart className="h-5 w-5" />
-              )
-            }
+            icon={added ? <Check className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
           >
             {added ? 'Agregado!' : 'Agregar al carrito'}
           </Button>
@@ -236,6 +230,7 @@ export default function HomePage() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 60]);
 
   const activeBurger = allBurgers[activeIndex];
+  const isLowStock = activeBurger.stock > 0 && activeBurger.stock < 5;
 
   // Auto-cycle
   useEffect(() => {
@@ -248,293 +243,218 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* ====== Hero Accordion ====== */}
+      {/* ====== Hero: Accordion + Banner ====== */}
       <section
         ref={heroRef}
         className="relative overflow-hidden"
         onMouseEnter={() => setIsAutoPlaying(false)}
         onMouseLeave={() => setIsAutoPlaying(true)}
       >
-        {/* Background */}
-        <div className="absolute inset-0 bg-[#0d0705]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,107,53,0.12)_0%,transparent_60%)]" />
+        <div className="absolute inset-0 bg-[#0a0604]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,107,53,0.08)_0%,transparent_50%)]" />
 
         <motion.div
           style={{ y: heroY }}
-          className="relative mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:py-16"
+          className="relative mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:py-14"
         >
-          {/* Desktop Accordion */}
-          <div className="hidden md:flex gap-2 h-[420px] lg:h-[480px]">
-            {allBurgers.map((burger, i) => {
-              const isActive = i === activeIndex;
-              const isLowStock = burger.stock > 0 && burger.stock < 5;
-
-              return (
-                <motion.div
-                  key={burger.id}
-                  layout
-                  onClick={() => setActiveIndex(i)}
-                  className={cn(
-                    'relative cursor-pointer overflow-hidden rounded-2xl transition-shadow duration-500',
-                    isActive
-                      ? 'shadow-2xl shadow-black/50'
-                      : 'shadow-lg shadow-black/20 hover:shadow-xl',
-                  )}
-                  animate={{
-                    flex: isActive ? 4 : 0.6,
-                  }}
-                  transition={{
-                    layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-                    flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-                  }}
-                >
-                  {/* Image */}
-                  {burger.imageUrl ? (
-                    <Image
-                      src={burger.imageUrl}
-                      alt={burger.name}
-                      fill
-                      sizes={isActive ? '60vw' : '10vw'}
-                      className="object-cover"
-                      priority={i < 3}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#2a1508] text-5xl">
-                      🍔
-                    </div>
-                  )}
-
-                  {/* Gradient */}
-                  <div
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
+            {/* Left: Accordion strips */}
+            <div className="flex lg:flex-col gap-1.5 sm:gap-2 h-[100px] sm:h-[120px] lg:h-[460px] lg:w-[90px] order-2 lg:order-1">
+              {allBurgers.map((burger, i) => {
+                const isActive = i === activeIndex;
+                return (
+                  <motion.button
+                    key={burger.id}
+                    onClick={() => setActiveIndex(i)}
                     className={cn(
-                      'absolute inset-0 transition-opacity duration-500',
+                      'relative cursor-pointer overflow-hidden transition-all duration-500',
+                      // Mobile: horizontal strips
+                      'flex-1 lg:flex-none rounded-lg lg:rounded-xl',
                       isActive
-                        ? 'bg-gradient-to-t from-black/70 via-black/10 to-black/20'
-                        : 'bg-gradient-to-t from-black/80 via-black/40 to-black/30',
+                        ? 'ring-2 ring-[#FF6B35] ring-offset-1 ring-offset-[#0a0604]'
+                        : 'opacity-60 hover:opacity-90',
                     )}
-                  />
+                    animate={{
+                      flex: isActive ? 2.5 : 1,
+                    }}
+                    transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                    style={{
+                      // For lg: fixed heights instead of flex
+                    }}
+                    aria-label={burger.name}
+                  >
+                    {burger.imageUrl ? (
+                      <Image
+                        src={burger.imageUrl}
+                        alt={burger.name}
+                        fill
+                        sizes="90px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-[#2a1508] flex items-center justify-center text-2xl">🍔</div>
+                    )}
+                    <div className={cn(
+                      'absolute inset-0 transition-all duration-300',
+                      isActive
+                        ? 'bg-black/10'
+                        : 'bg-black/50 hover:bg-black/35',
+                    )} />
 
-                  {/* Collapsed state: vertical name */}
-                  <AnimatePresence>
+                    {/* Name on collapsed - mobile */}
                     {!isActive && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute inset-0 flex flex-col items-center justify-end pb-5"
-                      >
-                        <span
-                          className="text-xs font-bold text-white/90 tracking-wider"
-                          style={{
-                            writingMode: 'vertical-rl',
-                            textOrientation: 'mixed',
-                          }}
-                        >
-                          {burger.name}
-                        </span>
-                        <span className="mt-2 text-[10px] font-semibold text-[#FF6B35]">
-                          {formatPrice(burger.price)}
-                        </span>
-                      </motion.div>
+                      <span className="absolute bottom-1 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white/80 truncate px-0.5 lg:hidden">
+                        {burger.name.split(' ')[1] || burger.name}
+                      </span>
                     )}
-                  </AnimatePresence>
 
-                  {/* Expanded state: full info */}
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.4, delay: 0.15 }}
-                        className="absolute inset-0 flex flex-col justify-end p-6 lg:p-8"
-                      >
-                        {isLowStock && (
-                          <span className="mb-2 inline-flex w-fit rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                            Quedan {burger.stock}!
-                          </span>
-                        )}
-                        <h2 className="text-3xl font-extrabold text-white lg:text-4xl">
-                          {burger.name}
-                        </h2>
-                        <p className="mt-1.5 max-w-sm text-sm text-white/70 leading-relaxed line-clamp-2">
-                          {burger.description}
-                        </p>
-                        <div className="mt-4 flex items-center gap-4">
-                          <span className="text-2xl font-extrabold text-[#FF6B35] lg:text-3xl">
-                            {formatPrice(burger.price)}
-                          </span>
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedBurger(burger);
-                            }}
-                            className="flex h-10 items-center gap-2 rounded-xl bg-[#FF6B35] px-5 text-sm font-semibold text-white cursor-pointer transition-colors hover:bg-[#e55e2e]"
-                          >
-                            <ShoppingCart className="h-4 w-4" />
-                            Agregar
-                          </motion.button>
-                        </div>
+                    {/* Name on collapsed - desktop vertical */}
+                    <span
+                      className={cn(
+                        'absolute inset-0 hidden lg:flex items-center justify-center text-[10px] font-bold tracking-wider transition-opacity duration-300',
+                        isActive ? 'opacity-0' : 'text-white/80 opacity-100',
+                      )}
+                      style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                    >
+                      {burger.name}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
 
-                        {burger.extras.length > 0 && (
-                          <div className="mt-3 flex gap-1.5">
-                            {burger.extras.map((extra) => (
-                              <span
-                                key={extra.id}
-                                className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60"
-                              >
-                                +{extra.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Mobile: Horizontal scroll accordion */}
-          <div className="flex md:hidden gap-2 h-[340px] overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
-            {allBurgers.map((burger, i) => {
-              const isActive = i === activeIndex;
-              const isLowStock = burger.stock > 0 && burger.stock < 5;
-
-              return (
+            {/* Right: Active Burger Banner */}
+            <div className="relative flex-1 order-1 lg:order-2 rounded-2xl lg:rounded-3xl overflow-hidden h-[340px] sm:h-[400px] lg:h-[460px]">
+              <AnimatePresence mode="wait">
                 <motion.div
-                  key={burger.id}
-                  onClick={() => setActiveIndex(i)}
-                  className={cn(
-                    'relative flex-shrink-0 cursor-pointer overflow-hidden rounded-2xl snap-start',
-                    isActive ? 'shadow-xl' : 'shadow-md',
-                  )}
-                  animate={{
-                    width: isActive ? '75vw' : '52px',
-                  }}
-                  transition={{
-                    width: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
-                  }}
+                  key={activeBurger.id}
+                  initial={{ opacity: 0, scale: 1.02 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0"
                 >
-                  {burger.imageUrl ? (
+                  {/* Background image */}
+                  {activeBurger.imageUrl ? (
                     <Image
-                      src={burger.imageUrl}
-                      alt={burger.name}
+                      src={activeBurger.imageUrl}
+                      alt={activeBurger.name}
                       fill
-                      sizes={isActive ? '75vw' : '52px'}
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 80vw"
                       className="object-cover"
-                      priority={i < 3}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#2a1508] text-4xl">
-                      🍔
-                    </div>
+                    <div className="absolute inset-0 bg-[#1a0e08] flex items-center justify-center text-8xl">🍔</div>
                   )}
 
-                  <div
-                    className={cn(
-                      'absolute inset-0',
-                      isActive
-                        ? 'bg-gradient-to-t from-black/70 via-transparent to-black/10'
-                        : 'bg-gradient-to-t from-black/80 via-black/40 to-black/20',
-                    )}
-                  />
+                  {/* Overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-black/10 sm:from-black/75 sm:via-black/30" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-                  {/* Collapsed */}
-                  {!isActive && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-4">
-                      <span
-                        className="text-[10px] font-bold text-white/80 tracking-wider"
-                        style={{
-                          writingMode: 'vertical-rl',
-                          textOrientation: 'mixed',
-                        }}
-                      >
-                        {burger.name}
-                      </span>
-                    </div>
-                  )}
+                  {/* Banner Content */}
+                  <div className="absolute inset-0 flex flex-col justify-end sm:justify-center p-5 sm:p-8 lg:p-10">
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4, delay: 0.15 }}
+                      className="max-w-md"
+                    >
+                      {/* Category label */}
+                      {activeBurger.category && (
+                        <span className="inline-block rounded-md bg-[#FF6B35]/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white mb-3">
+                          {activeBurger.category.name}
+                        </span>
+                      )}
 
-                  {/* Expanded */}
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3, delay: 0.1 }}
-                        className="absolute inset-0 flex flex-col justify-end p-4"
-                      >
-                        {isLowStock && (
-                          <span className="mb-1.5 inline-flex w-fit rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold text-white">
-                            Quedan {burger.stock}!
-                          </span>
-                        )}
-                        <h2 className="text-2xl font-extrabold text-white">
-                          {burger.name}
-                        </h2>
-                        <p className="mt-1 text-xs text-white/60 line-clamp-2">
-                          {burger.description}
-                        </p>
-                        <div className="mt-3 flex items-center gap-3">
-                          <span className="text-xl font-extrabold text-[#FF6B35]">
-                            {formatPrice(burger.price)}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedBurger(burger);
-                            }}
-                            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#FF6B35] px-3.5 text-xs font-semibold text-white cursor-pointer"
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            Agregar
-                          </button>
+                      {isLowStock && (
+                        <span className="inline-block ml-2 rounded-md bg-[#D62828]/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white mb-3">
+                          Ultimas {activeBurger.stock}!
+                        </span>
+                      )}
+
+                      {/* Name */}
+                      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
+                        {activeBurger.name}
+                      </h1>
+
+                      {/* Description */}
+                      <p className="mt-2.5 text-sm sm:text-base text-white/65 leading-relaxed line-clamp-3">
+                        {activeBurger.description}
+                      </p>
+
+                      {/* Extras tags */}
+                      {activeBurger.extras.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {activeBurger.extras.map((extra) => (
+                            <span
+                              key={extra.id}
+                              className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/60 backdrop-blur-sm"
+                            >
+                              + {extra.name} {formatPrice(extra.price)}
+                            </span>
+                          ))}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      )}
+
+                      {/* Price + CTA */}
+                      <div className="mt-5 flex items-center gap-4">
+                        <span className="text-3xl sm:text-4xl font-extrabold text-[#FF6B35]">
+                          {formatPrice(activeBurger.price)}
+                        </span>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setSelectedBurger(activeBurger)}
+                          className="flex h-11 items-center gap-2 rounded-xl bg-[#FF6B35] px-6 text-sm font-bold text-white cursor-pointer transition-colors hover:bg-[#e55e2e] shadow-lg shadow-[#FF6B35]/25"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          Pedir ahora
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  </div>
                 </motion.div>
-              );
-            })}
+              </AnimatePresence>
+
+              {/* Burger counter */}
+              <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">
+                <span className="text-xs font-bold text-[#FF6B35]">{activeIndex + 1}</span>
+                <span className="text-[10px] text-white/40">/</span>
+                <span className="text-xs text-white/50">{allBurgers.length}</span>
+              </div>
+            </div>
           </div>
 
-          {/* CTAs below accordion */}
-          <div className="mt-6 flex items-center justify-between">
-            {/* Dot indicators */}
+          {/* Bottom bar: dots + CTAs */}
+          <div className="mt-5 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              {allBurgers.map((_, i) => (
+              {allBurgers.map((b, i) => (
                 <button
-                  key={i}
+                  key={b.id}
                   onClick={() => setActiveIndex(i)}
                   className={cn(
-                    'h-1.5 rounded-full transition-all duration-300 cursor-pointer',
+                    'h-1 rounded-full transition-all duration-400 cursor-pointer',
                     i === activeIndex
-                      ? 'w-5 bg-[#FF6B35]'
-                      : 'w-1.5 bg-white/20 hover:bg-white/40',
+                      ? 'w-6 bg-[#FF6B35]'
+                      : 'w-1.5 bg-white/15 hover:bg-white/30',
                   )}
-                  aria-label={`${allBurgers[i].name}`}
+                  aria-label={b.name}
                 />
               ))}
             </div>
 
             <div className="flex gap-2.5">
               <Link href="/menu">
-                <Button size="lg" icon={<ArrowRight className="h-4 w-4" />}>
+                <Button icon={<ArrowRight className="h-4 w-4" />}>
                   Ver Menu
                 </Button>
               </Link>
-              <Link href="/arma-tu-burger" className="hidden sm:block">
+              <Link href="/nosotros" className="hidden sm:block">
                 <Button
-                  size="lg"
                   variant="secondary"
                   className="border-white/15 text-white hover:bg-white/10"
-                  icon={<Flame className="h-4 w-4" />}
                 >
-                  Crear Burger
+                  Nosotros
                 </Button>
               </Link>
             </div>
@@ -570,99 +490,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ====== Arma tu Burger ====== */}
-      <section className="relative overflow-hidden bg-[var(--bg-primary)] py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex flex-col items-center gap-10 md:flex-row md:gap-14">
-            <motion.div
-              className="flex-1"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5 }}
-            >
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF6B35]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#FF6B35]">
-                <Flame className="h-3 w-3" />
-                Builder
-              </span>
-              <h2 className="mt-4 text-3xl font-extrabold text-[var(--text-primary)] sm:text-4xl leading-[1.1]">
-                Arma tu propia{' '}
-                <span className="text-[#FF6B35]">Burger</span>
-              </h2>
-              <p className="mt-3 max-w-md text-[var(--text-secondary)] leading-relaxed">
-                Elegi el pan, la carne, los quesos, vegetales, salsas y toppings.
-                Crea tu combinacion perfecta y compartila con la comunidad.
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {['Pan Brioche', 'Carne 200g', 'Cheddar', 'Bacon', 'Salsa Vladi'].map(
-                  (item, i) => (
-                    <motion.span
-                      key={item}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.06 }}
-                      className="rounded-lg bg-[var(--bg-tertiary)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-color)]"
-                    >
-                      {item}
-                    </motion.span>
-                  ),
-                )}
-              </div>
-
-              <div className="mt-6">
-                <Link href="/arma-tu-burger">
-                  <Button size="lg" icon={<Flame className="h-4 w-4" />}>
-                    Empezar a crear
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="w-full flex-1 flex flex-col gap-2.5"
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">
-                Creaciones de la comunidad
-              </p>
-              {mockCreations.slice(0, 3).map((creation, i) => (
-                <motion.div
-                  key={creation.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.2 + i * 0.08 }}
-                >
-                  <div className="flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 transition-colors hover:border-[#FF6B35]/30">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FF6B35]/10 text-base">
-                      🍔
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-[var(--text-primary)]">
-                        {creation.name}
-                      </p>
-                      <p className="truncate text-xs text-[var(--text-muted)]">
-                        por {creation.user?.name} · {creation.voteCount} votos
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-bold text-[#FF6B35]">
-                      {formatPrice(creation.totalPrice)}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* ====== Testimonials ====== */}
-      <section className="bg-[var(--bg-secondary)] py-14 sm:py-18 border-t border-[var(--border-color)]">
+      <section className="bg-[var(--bg-primary)] py-14 sm:py-18">
         <div className="mx-auto max-w-7xl px-4">
           <motion.div
             className="mb-8 sm:mb-10"
@@ -683,7 +512,7 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="flex flex-col gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 sm:p-6"
+                className="flex flex-col gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 sm:p-6"
               >
                 <div className="flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, si) => (
@@ -715,10 +544,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bottom spacer for mobile nav */}
       <div className="h-16 md:hidden" />
 
-      {/* ====== Product Modal ====== */}
       <AnimatePresence>
         {selectedBurger && (
           <BurgerModal

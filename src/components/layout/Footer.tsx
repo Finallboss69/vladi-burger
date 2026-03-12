@@ -47,8 +47,6 @@ export function Footer() {
             <ul className="mt-3 space-y-2.5">
               {[
                 { href: '/menu', label: 'Menu' },
-                { href: '/arma-tu-burger', label: 'Arma tu Burger' },
-                { href: '/comunidad', label: 'Comunidad' },
                 { href: '/blog', label: 'Blog' },
                 { href: '/nosotros', label: 'Nosotros' },
               ].map((link) => (

@@ -15,15 +15,12 @@ import { useThemeStore } from '@/stores/theme-store';
 
 const navLinks = [
   { href: '/menu', label: 'Menu' },
-  { href: '/arma-tu-burger', label: 'Arma tu Burger' },
-  { href: '/comunidad', label: 'Comunidad' },
   { href: '/nosotros', label: 'Nosotros' },
 ];
 
 const mobileNavItems = [
   { href: '/', label: 'Inicio', icon: Home },
   { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
-  { href: '/arma-tu-burger', label: 'Crear', icon: Flame },
   { href: '/carrito', label: 'Carrito', icon: ShoppingCart },
   { href: '/cuenta', label: 'Cuenta', icon: User },
 ];
@@ -53,7 +50,6 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
@@ -256,7 +252,7 @@ export function Header() {
         </AnimatePresence>
       </header>
 
-      {/* Mobile Bottom Navigation - only on small screens */}
+      {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/95 backdrop-blur-xl md:hidden safe-area-bottom">
         <div className="flex items-center justify-around px-2 py-1">
           {mobileNavItems.map((item) => {
