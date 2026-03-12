@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
-  ArrowRight, Flame, Star, Users, Truck, ChevronLeft, ChevronRight,
-  ShoppingCart, Minus, Plus, Check, X, Sparkles, Timer,
+  ArrowRight, Flame, Star, Users, Timer,
+  ShoppingCart, Minus, Plus, Check, X,
 } from 'lucide-react';
-import { Button, Card, CardContent } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { mockProducts, mockCreations } from '@/lib/mock-data';
 import { formatPrice, generateId, cn } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
@@ -18,13 +18,6 @@ import type { Product, ProductExtra } from '@/types';
 /* ---- Data ---- */
 
 const allBurgers = mockProducts.filter((p) => p.categoryId === '1' && p.isActive);
-
-// Group burgers in sets of 3 for the carousel
-const burgerGroups: Product[][] = [];
-for (let i = 0; i < allBurgers.length; i += 3) {
-  burgerGroups.push(allBurgers.slice(i, i + 3));
-}
-// If last group has <3, pad it doesn't matter, we show what we have
 
 const stats = [
   { icon: Flame, value: '50K+', label: 'Burgers vendidas', color: '#FF6B35' },
@@ -228,89 +221,10 @@ function BurgerModal({
   );
 }
 
-/* ---- Burger Card for Hero Grid ---- */
-
-function HeroBurgerCard({
-  product,
-  index,
-  onSelect,
-}: {
-  product: Product;
-  index: number;
-  onSelect: (p: Product) => void;
-}) {
-  const isLowStock = product.stock > 0 && product.stock < 5;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      transition={{ duration: 0.45, delay: index * 0.08 }}
-      onClick={() => onSelect(product)}
-      className="group relative cursor-pointer overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-[#FF6B35]/40 transition-all duration-300 hover:bg-white/8"
-    >
-      <div className="relative aspect-[3/4] sm:aspect-[4/5] w-full overflow-hidden">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 20vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-110"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-[#2a1508] text-5xl">
-            🍔
-          </div>
-        )}
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-        {/* Low stock tag */}
-        {isLowStock && (
-          <div className="absolute top-2 left-2 rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-            Quedan {product.stock}
-          </div>
-        )}
-
-        {/* Quick-add overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6B35] text-white shadow-lg shadow-[#FF6B35]/40 scale-75 group-hover:scale-100 transition-transform duration-300">
-            <Plus className="h-6 w-6" />
-          </div>
-        </div>
-
-        {/* Bottom info */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-          <h3 className="text-sm sm:text-base font-bold text-white leading-tight drop-shadow">
-            {product.name}
-          </h3>
-          <p className="mt-0.5 text-[11px] sm:text-xs text-white/60 line-clamp-1">
-            {product.description}
-          </p>
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-base sm:text-lg font-extrabold text-[#FF6B35]">
-              {formatPrice(product.price)}
-            </span>
-            {product.extras.length > 0 && (
-              <span className="text-[10px] text-white/40">
-                +{product.extras.length} extras
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 /* ---- Main Page ---- */
 
 export default function HomePage() {
-  const [groupIndex, setGroupIndex] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -319,31 +233,22 @@ export default function HomePage() {
     target: heroRef,
     offset: ['start start', 'end start'],
   });
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, 60]);
 
-  const currentGroup = burgerGroups[groupIndex] || burgerGroups[0];
-  const totalGroups = burgerGroups.length;
+  const activeBurger = allBurgers[activeIndex];
 
-  const nextGroup = useCallback(() => {
-    setDirection(1);
-    setGroupIndex((prev) => (prev + 1) % totalGroups);
-  }, [totalGroups]);
-
-  const prevGroup = useCallback(() => {
-    setDirection(-1);
-    setGroupIndex((prev) => (prev - 1 + totalGroups) % totalGroups);
-  }, [totalGroups]);
-
-  // Auto-play
+  // Auto-cycle
   useEffect(() => {
-    if (!isAutoPlaying || selectedBurger || totalGroups <= 1) return;
-    const timer = setInterval(nextGroup, 5000);
+    if (!isAutoPlaying || selectedBurger) return;
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % allBurgers.length);
+    }, 4000);
     return () => clearInterval(timer);
-  }, [isAutoPlaying, nextGroup, selectedBurger, totalGroups]);
+  }, [isAutoPlaying, selectedBurger]);
 
   return (
     <div className="flex flex-col">
-      {/* ====== Hero ====== */}
+      {/* ====== Hero Accordion ====== */}
       <section
         ref={heroRef}
         className="relative overflow-hidden"
@@ -353,105 +258,276 @@ export default function HomePage() {
         {/* Background */}
         <div className="absolute inset-0 bg-[#0d0705]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,107,53,0.12)_0%,transparent_60%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(245,203,92,0.06)_0%,transparent_50%)]" />
 
         <motion.div
           style={{ y: heroY }}
-          className="relative mx-auto max-w-7xl px-4 py-10 sm:py-14 lg:py-20"
+          className="relative mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:py-16"
         >
-          {/* Top label */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-6 flex items-center gap-2"
-          >
-            <Sparkles className="h-4 w-4 text-[#FF6B35]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
-              Nuestras Burgers
-            </span>
-            {totalGroups > 1 && (
-              <span className="ml-auto text-xs text-white/30">
-                {groupIndex + 1}/{totalGroups}
-              </span>
-            )}
-          </motion.div>
+          {/* Desktop Accordion */}
+          <div className="hidden md:flex gap-2 h-[420px] lg:h-[480px]">
+            {allBurgers.map((burger, i) => {
+              const isActive = i === activeIndex;
+              const isLowStock = burger.stock > 0 && burger.stock < 5;
 
-          {/* Burger Grid 3-at-a-time */}
-          <div className="relative">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={groupIndex}
-                initial={{ opacity: 0, x: direction >= 0 ? 60 : -60 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: direction >= 0 ? -60 : 60 }}
-                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-5"
-              >
-                {currentGroup.map((burger, i) => (
-                  <HeroBurgerCard
-                    key={burger.id}
-                    product={burger}
-                    index={i}
-                    onSelect={setSelectedBurger}
+              return (
+                <motion.div
+                  key={burger.id}
+                  layout
+                  onClick={() => setActiveIndex(i)}
+                  className={cn(
+                    'relative cursor-pointer overflow-hidden rounded-2xl transition-shadow duration-500',
+                    isActive
+                      ? 'shadow-2xl shadow-black/50'
+                      : 'shadow-lg shadow-black/20 hover:shadow-xl',
+                  )}
+                  animate={{
+                    flex: isActive ? 4 : 0.6,
+                  }}
+                  transition={{
+                    layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                    flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                  }}
+                >
+                  {/* Image */}
+                  {burger.imageUrl ? (
+                    <Image
+                      src={burger.imageUrl}
+                      alt={burger.name}
+                      fill
+                      sizes={isActive ? '60vw' : '10vw'}
+                      className="object-cover"
+                      priority={i < 3}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#2a1508] text-5xl">
+                      🍔
+                    </div>
+                  )}
+
+                  {/* Gradient */}
+                  <div
+                    className={cn(
+                      'absolute inset-0 transition-opacity duration-500',
+                      isActive
+                        ? 'bg-gradient-to-t from-black/70 via-black/10 to-black/20'
+                        : 'bg-gradient-to-t from-black/80 via-black/40 to-black/30',
+                    )}
                   />
-                ))}
-              </motion.div>
-            </AnimatePresence>
 
-            {/* Nav arrows - only if more than 1 group */}
-            {totalGroups > 1 && (
-              <>
-                <button
-                  onClick={prevGroup}
-                  className="absolute -left-2 top-1/2 z-10 hidden sm:flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white/70 backdrop-blur-sm transition-all hover:bg-white/20 hover:text-white"
-                  aria-label="Anterior"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={nextGroup}
-                  className="absolute -right-2 top-1/2 z-10 hidden sm:flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white/70 backdrop-blur-sm transition-all hover:bg-white/20 hover:text-white"
-                  aria-label="Siguiente"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </>
-            )}
+                  {/* Collapsed state: vertical name */}
+                  <AnimatePresence>
+                    {!isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute inset-0 flex flex-col items-center justify-end pb-5"
+                      >
+                        <span
+                          className="text-xs font-bold text-white/90 tracking-wider"
+                          style={{
+                            writingMode: 'vertical-rl',
+                            textOrientation: 'mixed',
+                          }}
+                        >
+                          {burger.name}
+                        </span>
+                        <span className="mt-2 text-[10px] font-semibold text-[#FF6B35]">
+                          {formatPrice(burger.price)}
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Expanded state: full info */}
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.4, delay: 0.15 }}
+                        className="absolute inset-0 flex flex-col justify-end p-6 lg:p-8"
+                      >
+                        {isLowStock && (
+                          <span className="mb-2 inline-flex w-fit rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                            Quedan {burger.stock}!
+                          </span>
+                        )}
+                        <h2 className="text-3xl font-extrabold text-white lg:text-4xl">
+                          {burger.name}
+                        </h2>
+                        <p className="mt-1.5 max-w-sm text-sm text-white/70 leading-relaxed line-clamp-2">
+                          {burger.description}
+                        </p>
+                        <div className="mt-4 flex items-center gap-4">
+                          <span className="text-2xl font-extrabold text-[#FF6B35] lg:text-3xl">
+                            {formatPrice(burger.price)}
+                          </span>
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBurger(burger);
+                            }}
+                            className="flex h-10 items-center gap-2 rounded-xl bg-[#FF6B35] px-5 text-sm font-semibold text-white cursor-pointer transition-colors hover:bg-[#e55e2e]"
+                          >
+                            <ShoppingCart className="h-4 w-4" />
+                            Agregar
+                          </motion.button>
+                        </div>
+
+                        {burger.extras.length > 0 && (
+                          <div className="mt-3 flex gap-1.5">
+                            {burger.extras.map((extra) => (
+                              <span
+                                key={extra.id}
+                                className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60"
+                              >
+                                +{extra.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
           </div>
 
-          {/* Dots + CTAs row */}
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Dots */}
-            {totalGroups > 1 && (
-              <div className="flex items-center gap-1.5">
-                {burgerGroups.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setDirection(i > groupIndex ? 1 : -1);
-                      setGroupIndex(i);
-                    }}
-                    className={cn(
-                      'h-1.5 rounded-full transition-all duration-300 cursor-pointer',
-                      i === groupIndex
-                        ? 'w-6 bg-[#FF6B35]'
-                        : 'w-1.5 bg-white/20 hover:bg-white/40',
-                    )}
-                    aria-label={`Grupo ${i + 1}`}
-                  />
-                ))}
-              </div>
-            )}
+          {/* Mobile: Horizontal scroll accordion */}
+          <div className="flex md:hidden gap-2 h-[340px] overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
+            {allBurgers.map((burger, i) => {
+              const isActive = i === activeIndex;
+              const isLowStock = burger.stock > 0 && burger.stock < 5;
 
-            {/* CTAs */}
-            <div className="flex gap-3">
+              return (
+                <motion.div
+                  key={burger.id}
+                  onClick={() => setActiveIndex(i)}
+                  className={cn(
+                    'relative flex-shrink-0 cursor-pointer overflow-hidden rounded-2xl snap-start',
+                    isActive ? 'shadow-xl' : 'shadow-md',
+                  )}
+                  animate={{
+                    width: isActive ? '75vw' : '52px',
+                  }}
+                  transition={{
+                    width: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
+                  }}
+                >
+                  {burger.imageUrl ? (
+                    <Image
+                      src={burger.imageUrl}
+                      alt={burger.name}
+                      fill
+                      sizes={isActive ? '75vw' : '52px'}
+                      className="object-cover"
+                      priority={i < 3}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#2a1508] text-4xl">
+                      🍔
+                    </div>
+                  )}
+
+                  <div
+                    className={cn(
+                      'absolute inset-0',
+                      isActive
+                        ? 'bg-gradient-to-t from-black/70 via-transparent to-black/10'
+                        : 'bg-gradient-to-t from-black/80 via-black/40 to-black/20',
+                    )}
+                  />
+
+                  {/* Collapsed */}
+                  {!isActive && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-4">
+                      <span
+                        className="text-[10px] font-bold text-white/80 tracking-wider"
+                        style={{
+                          writingMode: 'vertical-rl',
+                          textOrientation: 'mixed',
+                        }}
+                      >
+                        {burger.name}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Expanded */}
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="absolute inset-0 flex flex-col justify-end p-4"
+                      >
+                        {isLowStock && (
+                          <span className="mb-1.5 inline-flex w-fit rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold text-white">
+                            Quedan {burger.stock}!
+                          </span>
+                        )}
+                        <h2 className="text-2xl font-extrabold text-white">
+                          {burger.name}
+                        </h2>
+                        <p className="mt-1 text-xs text-white/60 line-clamp-2">
+                          {burger.description}
+                        </p>
+                        <div className="mt-3 flex items-center gap-3">
+                          <span className="text-xl font-extrabold text-[#FF6B35]">
+                            {formatPrice(burger.price)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBurger(burger);
+                            }}
+                            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#FF6B35] px-3.5 text-xs font-semibold text-white cursor-pointer"
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            Agregar
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* CTAs below accordion */}
+          <div className="mt-6 flex items-center justify-between">
+            {/* Dot indicators */}
+            <div className="flex items-center gap-1.5">
+              {allBurgers.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveIndex(i)}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all duration-300 cursor-pointer',
+                    i === activeIndex
+                      ? 'w-5 bg-[#FF6B35]'
+                      : 'w-1.5 bg-white/20 hover:bg-white/40',
+                  )}
+                  aria-label={`${allBurgers[i].name}`}
+                />
+              ))}
+            </div>
+
+            <div className="flex gap-2.5">
               <Link href="/menu">
                 <Button size="lg" icon={<ArrowRight className="h-4 w-4" />}>
                   Ver Menu
                 </Button>
               </Link>
-              <Link href="/arma-tu-burger">
+              <Link href="/arma-tu-burger" className="hidden sm:block">
                 <Button
                   size="lg"
                   variant="secondary"
@@ -498,7 +574,6 @@ export default function HomePage() {
       <section className="relative overflow-hidden bg-[var(--bg-primary)] py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex flex-col items-center gap-10 md:flex-row md:gap-14">
-            {/* Left content */}
             <motion.div
               className="flex-1"
               initial={{ opacity: 0, x: -30 }}
@@ -545,7 +620,6 @@ export default function HomePage() {
               </div>
             </motion.div>
 
-            {/* Right: Community creations */}
             <motion.div
               className="w-full flex-1 flex flex-col gap-2.5"
               initial={{ opacity: 0, x: 30 }}
