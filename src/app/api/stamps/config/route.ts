@@ -45,7 +45,7 @@ export async function PUT(req: Request) {
         prizeDescription: prizeDescription ?? 'Comprá 5 burgers y la 6ta te la regalamos!',
         prizeDiscount: prizeDiscount ?? 100,
         prizeProductId: prizeProductId ?? null,
-        categoryId: categoryId ?? '1',
+        categoryId: categoryId ?? null,
       },
     })
   }

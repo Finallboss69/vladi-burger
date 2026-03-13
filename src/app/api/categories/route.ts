@@ -8,10 +8,9 @@ export async function GET() {
     include: { _count: { select: { products: true } } },
   })
 
-  const data = categories.map((c) => ({
+  const data = categories.map(({ _count, ...c }) => ({
     ...c,
-    productCount: c._count.products,
-    _count: undefined,
+    productCount: _count.products,
   }))
 
   return NextResponse.json({ data })

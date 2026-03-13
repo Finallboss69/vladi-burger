@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { getUserFromToken } from '@/lib/auth'
 
 // GET /api/reviews — public: get latest reviews for homepage
 export async function GET(req: NextRequest) {
@@ -39,15 +39,9 @@ export async function GET(req: NextRequest) {
 // POST /api/reviews — auth: create a review for a delivered order
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
-    if (!token) {
+    const user = await getUserFromToken(req.headers.get('authorization'))
+    if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: 'Token invalido' }, { status: 401 })
     }
 
     const { orderId, rating, comment } = await req.json()
@@ -61,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     // Verify order belongs to user and is delivered
     const order = await prisma.order.findFirst({
-      where: { id: orderId, userId: payload.userId, status: 'DELIVERED' },
+      where: { id: orderId, userId: user.id, status: 'DELIVERED' },
       include: { review: true },
     })
 
@@ -82,7 +76,7 @@ export async function POST(req: NextRequest) {
     const review = await prisma.orderReview.create({
       data: {
         orderId,
-        userId: payload.userId,
+        userId: user.id,
         rating: Math.round(rating),
         comment: comment?.trim() || null,
       },

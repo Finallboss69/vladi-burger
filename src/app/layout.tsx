@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/layout/Providers';
@@ -9,12 +9,15 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+export const viewport: Viewport = {
+  themeColor: RESTAURANT.primaryColor,
+};
+
 export const metadata: Metadata = {
   title: `${RESTAURANT.name} | ${RESTAURANT.tagline}`,
   description: RESTAURANT.description,
   keywords: [...RESTAURANT.keywords],
   manifest: '/manifest.json',
-  themeColor: RESTAURANT.primaryColor,
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
