@@ -15,6 +15,31 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: [] })
     }
 
+    // Get today's date string for slot matching
+    const today = new Date()
+    const dateStr = today.toISOString().split('T')[0]
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const endOfDay = new Date(startOfDay)
+    endOfDay.setDate(endOfDay.getDate() + 1)
+
+    // Count all non-cancelled orders today grouped by their scheduled time
+    const todayOrders = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: startOfDay, lt: endOfDay },
+        status: { notIn: ['CANCELLED'] },
+      },
+      select: { scheduledAt: true },
+    })
+
+    // Build a map of scheduled time -> order count
+    const slotCounts = new Map<string, number>()
+    for (const order of todayOrders) {
+      if (order.scheduledAt) {
+        const orderTime = order.scheduledAt.toISOString().substring(11, 16) // HH:MM
+        slotCounts.set(orderTime, (slotCounts.get(orderTime) ?? 0) + 1)
+      }
+    }
+
     // Generate time slots
     const slots = []
     const [startH, startM] = schedule.startTime.split(':').map(Number)
@@ -27,8 +52,8 @@ export async function GET(req: Request) {
       const m = min % 60
       const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 
-      // Count orders for this slot (simplified)
-      const remainingSlots = Math.max(0, schedule.maxOrders - Math.floor(Math.random() * 3))
+      const ordersInSlot = slotCounts.get(time) ?? 0
+      const remainingSlots = Math.max(0, schedule.maxOrders - ordersInSlot)
 
       slots.push({
         time,

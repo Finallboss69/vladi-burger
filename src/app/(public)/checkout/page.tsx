@@ -141,7 +141,7 @@ export default function CheckoutPage() {
         })),
         deliveryType,
         addressId: selectedAddress?.id,
-        scheduledTime: selectedTimeSlot,
+        scheduledAt: selectedTimeSlot ? `${new Date().toISOString().split('T')[0]}T${selectedTimeSlot}:00` : null,
         paymentMethod,
         notes,
         couponCode,
@@ -489,12 +489,27 @@ export default function CheckoutPage() {
                             <Button
                               variant="secondary"
                               className="sm:col-span-2"
-                              onClick={() => {
-                                setSelectedAddress({
-                                  id: `new-${Date.now()}`,
-                                  userId: 'u1',
-                                  ...newAddress,
-                                });
+                              onClick={async () => {
+                                try {
+                                  const res = await api.post('/addresses', newAddress);
+                                  const saved = res.data.data;
+                                  if (saved) {
+                                    setSavedAddresses((prev) => [...prev, saved]);
+                                    setSelectedAddress(saved);
+                                  } else {
+                                    setSelectedAddress({
+                                      id: `new-${Date.now()}`,
+                                      userId: '',
+                                      ...newAddress,
+                                    });
+                                  }
+                                } catch {
+                                  setSelectedAddress({
+                                    id: `new-${Date.now()}`,
+                                    userId: '',
+                                    ...newAddress,
+                                  });
+                                }
                                 setShowAddressForm(false);
                               }}
                               disabled={!newAddress.street || !newAddress.number || !newAddress.city}

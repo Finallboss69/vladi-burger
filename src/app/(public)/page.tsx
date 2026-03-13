@@ -15,12 +15,17 @@ import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
 import type { Product, ProductExtra } from '@/types';
 
-const defaultStats = [
-  { icon: Flame, value: '50K+', label: 'Burgers vendidas', color: '#FF6B35' },
-  { icon: Star, value: '4.8', label: 'Rating promedio', color: '#F5CB5C', key: 'rating' as const },
-  { icon: Users, value: '12K+', label: 'Clientes felices', color: '#2D6A4F' },
-  { icon: Timer, value: '30\'', label: 'Delivery promedio', color: '#D62828' },
-];
+interface StatsData {
+  burgersSold: number;
+  avgRating: number;
+  totalCustomers: number;
+  totalOrders: number;
+}
+
+function formatStatValue(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K+`;
+  return String(n);
+}
 
 interface ReviewData {
   id: string;
@@ -248,6 +253,7 @@ export default function HomePage() {
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [avgRating, setAvgRating] = useState('4.8');
   const [totalReviews, setTotalReviews] = useState(0);
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
     api.get('/products?categoryId=1').then((res) => {
@@ -256,6 +262,10 @@ export default function HomePage() {
       if (burgers.length > 0) {
         setActiveIndex(burgers.length - 1);
       }
+    }).catch(() => {});
+
+    api.get('/stats').then((res) => {
+      setStats(res.data.data);
     }).catch(() => {});
 
     api.get('/reviews?limit=6').then((res) => {
@@ -523,7 +533,12 @@ export default function HomePage() {
       <section className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid grid-cols-4 divide-x divide-[var(--border-color)]">
-            {defaultStats.map((stat, i) => (
+            {[
+              { icon: Flame, value: stats ? formatStatValue(stats.burgersSold) : '---', label: 'Burgers vendidas', color: '#FF6B35' },
+              { icon: Star, value: stats?.avgRating ? String(stats.avgRating) : (totalReviews > 0 ? avgRating : '---'), label: 'Rating promedio', color: '#F5CB5C' },
+              { icon: Users, value: stats ? formatStatValue(stats.totalCustomers) : '---', label: 'Clientes felices', color: '#2D6A4F' },
+              { icon: Timer, value: stats ? formatStatValue(stats.totalOrders) : '---', label: 'Pedidos totales', color: '#D62828' },
+            ].map((stat, i) => (
               <motion.div
                 key={stat.label}
                 className="flex flex-col items-center gap-1 py-5 sm:py-6 sm:flex-row sm:gap-3 sm:justify-center"
@@ -535,7 +550,7 @@ export default function HomePage() {
                 <stat.icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: stat.color }} />
                 <div className="text-center sm:text-left">
                   <span className="block text-lg sm:text-xl font-extrabold text-[var(--text-primary)]">
-                    {stat.key === 'rating' && totalReviews > 0 ? avgRating : stat.value}
+                    {stat.value}
                   </span>
                   <span className="block text-[10px] sm:text-xs text-[var(--text-muted)]">
                     {stat.label}

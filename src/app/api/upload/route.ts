@@ -7,18 +7,31 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   try {
-    const formData = await req.formData()
-    const file = formData.get('file') as File | null
-    const folder = (formData.get('folder') as string) || 'vladi-burger'
+    const contentType = req.headers.get('content-type') ?? ''
 
-    if (!file) {
-      return NextResponse.json({ error: 'No se envió archivo' }, { status: 400 })
+    let base64: string
+
+    if (contentType.includes('application/json')) {
+      // JSON body with base64 image
+      const body = await req.json()
+      if (!body.image) {
+        return NextResponse.json({ error: 'No se envio imagen' }, { status: 400 })
+      }
+      base64 = body.image
+    } else {
+      // FormData with file
+      const formData = await req.formData()
+      const file = formData.get('file') as File | null
+
+      if (!file) {
+        return NextResponse.json({ error: 'No se envio archivo' }, { status: 400 })
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer())
+      base64 = `data:${file.type};base64,${buffer.toString('base64')}`
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const base64 = `data:${file.type};base64,${buffer.toString('base64')}`
-
-    const result = await uploadImage(base64, folder)
+    const result = await uploadImage(base64, 'vladi-burger')
     return NextResponse.json({ data: result })
   } catch (e) {
     return NextResponse.json({ error: 'Error subiendo imagen', detail: String(e) }, { status: 500 })

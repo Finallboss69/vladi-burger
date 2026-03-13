@@ -18,6 +18,9 @@ import {
   LogOut,
   Stamp,
   Layers,
+  Truck,
+  Navigation,
+  Camera,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -31,6 +34,9 @@ const navItems = [
   { href: '/admin/cupones', label: 'Cupones', icon: Ticket },
   { href: '/admin/sellos', label: 'Sellos', icon: Stamp },
   { href: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
+  { href: '/admin/delivery', label: 'Delivery', icon: Truck },
+  { href: '/admin/asignar', label: 'Asignar Pedidos', icon: Navigation },
+  { href: '/admin/fotos', label: 'Fotos', icon: Camera },
   { href: '/cocina', label: 'Cocina', icon: ChefHat },
 ];
 

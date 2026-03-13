@@ -15,6 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       address: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
+      deliveryDriver: { select: { id: true, name: true, phone: true } },
     },
   })
 
@@ -37,20 +38,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUserFromToken(req.headers.get('authorization'))
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'KITCHEN')) {
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'KITCHEN' && user.role !== 'DELIVERY')) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
-  const { status } = await req.json()
+  const { status, deliveryDriverId } = await req.json()
+
+  const updateData: Record<string, unknown> = {}
+  if (status !== undefined) updateData.status = status
+  if (deliveryDriverId !== undefined) updateData.deliveryDriverId = deliveryDriverId
 
   const order = await prisma.order.update({
     where: { id },
-    data: { status },
+    data: updateData,
     include: {
       items: { include: { product: true } },
       address: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
+      deliveryDriver: { select: { id: true, name: true, phone: true } },
     },
   })
 

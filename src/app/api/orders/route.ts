@@ -10,16 +10,23 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const status = url.searchParams.get('status')
   const limit = parseInt(url.searchParams.get('limit') ?? '50')
+  const driverId = url.searchParams.get('driverId')
 
   const where: Record<string, unknown> = {}
 
   // Admin/Kitchen see all, customers see only their own
   if (user.role === 'CUSTOMER') {
     where.userId = user.id
+  } else if (user.role === 'DELIVERY') {
+    where.deliveryDriverId = user.id
   }
 
   if (status) {
     where.status = { in: status.split(',') }
+  }
+
+  if (driverId) {
+    where.deliveryDriverId = driverId
   }
 
   const orders = await prisma.order.findMany({
@@ -29,6 +36,7 @@ export async function GET(req: Request) {
       address: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
+      deliveryDriver: { select: { id: true, name: true, phone: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: limit,

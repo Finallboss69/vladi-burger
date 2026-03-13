@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -173,12 +173,65 @@ function PhotoLightbox({
 export default function FotosPage() {
   const [photos, setPhotos] = useState<CustomerPhoto[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<CustomerPhoto | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadCaption, setUploadCaption] = useState('');
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get('/photos')
       .then((res) => setPhotos(res.data.data ?? []))
       .catch(() => setPhotos([]));
   }, []);
+
+  async function handleUpload() {
+    if (!uploadFile) return;
+    setIsUploading(true);
+    try {
+      // Upload image to Cloudinary via our API
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(uploadFile);
+      });
+
+      const uploadRes = await api.post('/upload', { image: base64 });
+      const imageUrl = uploadRes.data.data?.url;
+      if (!imageUrl) throw new Error('No image URL returned');
+
+      // Create photo record
+      const photoRes = await api.post('/photos', {
+        imageUrl,
+        caption: uploadCaption.trim() || null,
+      });
+
+      // Add to local state (pending approval)
+      const newPhoto = photoRes.data.data;
+      if (newPhoto) {
+        setPhotos((prev) => [{ ...newPhoto, hasLiked: false }, ...prev]);
+      }
+
+      setShowUploadModal(false);
+      setUploadCaption('');
+      setUploadPreview(null);
+      setUploadFile(null);
+    } catch {
+      // Could show error notification here
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadFile(file);
+    const url = URL.createObjectURL(file);
+    setUploadPreview(url);
+    setShowUploadModal(true);
+  }
 
   const approvedPhotos = photos.filter((p) => p.isApproved);
 
@@ -224,14 +277,21 @@ export default function FotosPage() {
               </p>
             </div>
           </div>
-          <Button
-            icon={<Camera className="h-4 w-4" />}
-            onClick={() => {
-              /* mock - no action */
-            }}
-          >
-            Subir Foto
-          </Button>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button
+              icon={<Camera className="h-4 w-4" />}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Subir Foto
+            </Button>
+          </div>
         </motion.div>
       </div>
 
@@ -257,6 +317,80 @@ export default function FotosPage() {
           </div>
         )}
       </section>
+
+      {/* Upload Modal */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !isUploading && setShowUploadModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl bg-[var(--bg-secondary)] p-6"
+            >
+              <button
+                onClick={() => !isUploading && setShowUploadModal(false)}
+                className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <h3 className="mb-4 text-lg font-bold text-[var(--text-primary)]">Subir foto</h3>
+
+              {uploadPreview && (
+                <div
+                  className="mb-4 aspect-video w-full rounded-xl bg-cover bg-center"
+                  style={{ backgroundImage: `url(${uploadPreview})` }}
+                />
+              )}
+
+              <input
+                type="text"
+                placeholder="Agrega una descripcion (opcional)"
+                value={uploadCaption}
+                onChange={(e) => setUploadCaption(e.target.value)}
+                className="mb-4 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#FF6B35]"
+              />
+
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadPreview(null);
+                    setUploadFile(null);
+                    setUploadCaption('');
+                  }}
+                  disabled={isUploading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleUpload}
+                  loading={isUploading}
+                  disabled={isUploading}
+                  icon={<Upload className="h-4 w-4" />}
+                >
+                  {isUploading ? 'Subiendo...' : 'Subir'}
+                </Button>
+              </div>
+
+              <p className="mt-3 text-center text-xs text-[var(--text-muted)]">
+                Tu foto sera revisada antes de publicarse
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lightbox */}
       <AnimatePresence>
