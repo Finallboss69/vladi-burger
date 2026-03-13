@@ -37,9 +37,13 @@ export default function CarritoPage() {
     total,
     removeItem,
     updateQuantity,
+    updateNotes,
     applyCoupon,
     removeCoupon,
   } = useCartStore();
+
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState('');
 
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -165,6 +169,54 @@ export default function CarritoPage() {
                       <p className="mt-1 text-sm text-[var(--text-muted)]">
                         + {item.extras.map((e) => e.name).join(', ')}
                       </p>
+                    )}
+                    {editingNotesId === item.id ? (
+                      <div className="mt-1.5 flex gap-1.5">
+                        <input
+                          autoFocus
+                          value={editingNotesValue}
+                          onChange={(e) => setEditingNotesValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              updateNotes(item.id, editingNotesValue.trim() || undefined);
+                              setEditingNotesId(null);
+                            }
+                            if (e.key === 'Escape') setEditingNotesId(null);
+                          }}
+                          placeholder="Ej: Sin cebolla, bien cocida..."
+                          className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#FF6B35] transition-colors"
+                        />
+                        <button
+                          onClick={() => {
+                            updateNotes(item.id, editingNotesValue.trim() || undefined);
+                            setEditingNotesId(null);
+                          }}
+                          className="rounded-lg bg-[#FF6B35] px-2 py-1 text-xs font-medium text-white hover:bg-[#e55e2e] cursor-pointer"
+                        >
+                          OK
+                        </button>
+                      </div>
+                    ) : item.notes ? (
+                      <p
+                        className="mt-1 text-xs text-[var(--text-muted)] italic cursor-pointer hover:text-[#FF6B35] transition-colors"
+                        onClick={() => {
+                          setEditingNotesId(item.id);
+                          setEditingNotesValue(item.notes ?? '');
+                        }}
+                        title="Click para editar"
+                      >
+                        &ldquo;{item.notes}&rdquo;
+                      </p>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingNotesId(item.id);
+                          setEditingNotesValue('');
+                        }}
+                        className="mt-1 text-xs text-[var(--text-muted)] hover:text-[#FF6B35] cursor-pointer transition-colors"
+                      >
+                        + Agregar comentario
+                      </button>
                     )}
                   </div>
 

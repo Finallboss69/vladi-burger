@@ -302,6 +302,11 @@ export default function AdminPedidos() {
                                             + {orderItem.extras.map((e) => e.name).join(', ')}
                                           </p>
                                         )}
+                                        {orderItem.notes && (
+                                          <p className="text-xs text-[#F5CB5C] italic">
+                                            &ldquo;{orderItem.notes}&rdquo;
+                                          </p>
+                                        )}
                                       </div>
                                       <span className="text-sm font-medium text-[var(--text-primary)] tabular-nums">
                                         {formatPrice(orderItem.price * orderItem.quantity)}

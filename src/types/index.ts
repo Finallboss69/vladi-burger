@@ -145,6 +145,7 @@ export interface CartItem {
   imageUrl?: string;
   isCustom: boolean;
   customIngredients?: SelectedIngredient[];
+  notes?: string;
 }
 
 export interface OrderItem {
@@ -157,6 +158,7 @@ export interface OrderItem {
   extras?: ProductExtra[];
   isCustom: boolean;
   customIngredients?: Array<{ ingredientId: string; quantity: number; name: string }>;
+  notes?: string;
 }
 
 export interface Order {

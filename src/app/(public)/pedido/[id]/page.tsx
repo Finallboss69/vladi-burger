@@ -771,6 +771,11 @@ export default function PedidoPage() {
                         + {item.extras.map((e) => e.name).join(', ')}
                       </p>
                     )}
+                    {item.notes && (
+                      <p className="text-xs text-[var(--text-muted)] italic">
+                        &ldquo;{item.notes}&rdquo;
+                      </p>
+                    )}
                   </div>
                   <span className="text-sm font-semibold text-[var(--text-primary)]">
                     {formatPrice(

@@ -295,6 +295,11 @@ export default function KitchenDisplay() {
                                     + {orderItem.extras.map((e) => e.name).join(', ')}
                                   </p>
                                 )}
+                                {orderItem.notes && (
+                                  <p className="text-xs text-[#F5CB5C] italic">
+                                    &ldquo;{orderItem.notes}&rdquo;
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}

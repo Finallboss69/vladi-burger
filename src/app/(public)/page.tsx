@@ -44,6 +44,7 @@ function BurgerModal({
   const [quantity, setQuantity] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState(false);
+  const [notes, setNotes] = useState('');
 
   function toggleExtra(extraId: string) {
     setSelectedExtras((prev) => {
@@ -70,6 +71,7 @@ function BurgerModal({
       extras: chosenExtras,
       imageUrl: product.imageUrl,
       isCustom: false,
+      notes: notes.trim() || undefined,
     });
     addNotification({
       type: 'success',
@@ -181,6 +183,20 @@ function BurgerModal({
               </div>
             </div>
           )}
+
+          {/* Notes */}
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Comentario (opcional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ej: Sin cebolla, bien cocida..."
+              rows={2}
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[#FF6B35] transition-colors"
+            />
+          </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]">

@@ -137,6 +137,7 @@ export default function CheckoutPage() {
           quantity: i.quantity,
           extras: i.extras,
           isCustom: i.isCustom,
+          notes: i.notes,
         })),
         deliveryType,
         addressId: selectedAddress?.id,

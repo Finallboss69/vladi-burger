@@ -95,7 +95,7 @@ export async function POST(req: Request) {
         pointsEarned,
         source: 'WEB',
         items: {
-          create: items.map((item: { productId?: string; name: string; price: number; quantity: number; extras?: unknown[]; isCustom?: boolean; customIngredients?: unknown[] }) => ({
+          create: items.map((item: { productId?: string; name: string; price: number; quantity: number; extras?: unknown[]; isCustom?: boolean; customIngredients?: unknown[]; notes?: string }) => ({
             productId: item.productId || null,
             name: item.name,
             price: item.price,
@@ -103,6 +103,7 @@ export async function POST(req: Request) {
             extras: item.extras?.length ? JSON.stringify(item.extras) : null,
             isCustom: item.isCustom ?? false,
             customIngredients: item.customIngredients?.length ? JSON.stringify(item.customIngredients) : null,
+            notes: item.notes ?? null,
           })),
         },
       },

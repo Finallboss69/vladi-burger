@@ -12,6 +12,7 @@ interface CartState {
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, qty: number) => void;
+  updateNotes: (id: string, notes: string | undefined) => void;
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => void;
   clear: () => void;
@@ -69,6 +70,14 @@ export const useCartStore = create<CartState>()(
             );
             return { items: updatedItems, ...computeTotals(updatedItems, state.discount) };
           }, false, 'updateQuantity'),
+
+        updateNotes: (id: string, notes: string | undefined) =>
+          set((state) => {
+            const updatedItems = state.items.map((i) =>
+              i.id === id ? { ...i, notes } : i,
+            );
+            return { items: updatedItems };
+          }, false, 'updateNotes'),
 
         applyCoupon: async (code: string) => {
           const state = useCartStore.getState();

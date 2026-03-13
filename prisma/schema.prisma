@@ -133,6 +133,7 @@ model OrderItem {
   extras            String? // JSON string of extras
   isCustom          Boolean @default(false)
   customIngredients String? // JSON string of custom ingredients
+  notes             String?
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
