@@ -12,7 +12,7 @@ import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { Input } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationStore } from '@/stores/notification-store';
-import { mockUser } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { cn, getVipColor } from '@/lib/utils';
 import type { VipLevel } from '@/types';
 
@@ -33,7 +33,7 @@ const vipBgColors: Record<string, string> = {
 const quickLinks = [
   { href: '/cuenta/pedidos', icon: ShoppingBag, label: 'Mis Pedidos', desc: 'Historial y reorden' },
   { href: '/cuenta/direcciones', icon: MapPin, label: 'Direcciones', desc: 'Gestionar direcciones' },
-  { href: '/cuenta/puntos', icon: Gift, label: 'Puntos', desc: 'Canjear recompensas' },
+  { href: '/cuenta/puntos', icon: Gift, label: 'Tarjeta de Sellos', desc: 'Junta sellos y gana premios' },
 ];
 
 const container = {
@@ -55,7 +55,13 @@ export default function CuentaPage() {
   const logout = useAuthStore((s) => s.logout);
   const addNotification = useNotificationStore((s) => s.addNotification);
 
-  const user = authUser ?? mockUser;
+  const user = authUser;
+
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
   const vip = vipThresholds[user.vipLevel] ?? vipThresholds.BRONZE;
   const progressPercent =
     vip.next === null
@@ -69,10 +75,15 @@ export default function CuentaPage() {
 
   async function handleSave() {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    addNotification({ type: 'success', title: 'Perfil actualizado', message: 'Tus datos se guardaron correctamente' });
-    setSaving(false);
-    setEditing(false);
+    try {
+      await api.patch('/users/me', { name: formName, phone: formPhone });
+      addNotification({ type: 'success', title: 'Perfil actualizado', message: 'Tus datos se guardaron correctamente' });
+      setEditing(false);
+    } catch {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo actualizar el perfil' });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleLogout() {

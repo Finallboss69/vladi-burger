@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -19,7 +20,18 @@ import { Card, CardContent, CardHeader } from '@/components/ui';
 import { Badge } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { cn, formatPrice, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { mockDashboardStats, mockOrders, mockKitchenOrders } from '@/lib/mock-data';
+import api from '@/lib/api';
+import type { Order } from '@/types';
+
+interface DashboardStats {
+  ordersToday: number;
+  revenueToday: number;
+  revenueWeek: number;
+  revenueMonth: number;
+  avgRating: number;
+  activeCustomers: number;
+  popularProducts: Array<{ name: string; count: number }>;
+}
 
 const container = {
   hidden: { opacity: 0 },
@@ -34,64 +46,84 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-const statCards = [
-  {
-    label: 'Pedidos hoy',
-    value: mockDashboardStats.ordersToday,
-    format: (v: number) => v.toString(),
-    icon: ShoppingBag,
-    color: '#FF6B35',
-    bg: 'bg-[#FF6B35]/10',
-  },
-  {
-    label: 'Ingresos hoy',
-    value: mockDashboardStats.revenueToday,
-    format: formatPrice,
-    icon: DollarSign,
-    color: '#2D6A4F',
-    bg: 'bg-[#2D6A4F]/10',
-  },
-  {
-    label: 'Ingresos semana',
-    value: mockDashboardStats.revenueWeek,
-    format: formatPrice,
-    icon: TrendingUp,
-    color: '#F5CB5C',
-    bg: 'bg-[#F5CB5C]/10',
-  },
-  {
-    label: 'Ingresos mes',
-    value: mockDashboardStats.revenueMonth,
-    format: formatPrice,
-    icon: CalendarDays,
-    color: '#3E2723',
-    bg: 'bg-[#3E2723]/10 dark:bg-[#F5CB5C]/10',
-  },
-  {
-    label: 'Rating promedio',
-    value: mockDashboardStats.avgRating,
-    format: (v: number) => v.toFixed(1),
-    icon: Star,
-    color: '#F5CB5C',
-    bg: 'bg-[#F5CB5C]/10',
-  },
-  {
-    label: 'Clientes activos',
-    value: mockDashboardStats.activeCustomers,
-    format: (v: number) => v.toString(),
-    icon: Users,
-    color: '#D62828',
-    bg: 'bg-[#D62828]/10',
-  },
-];
+const defaultStats: DashboardStats = {
+  ordersToday: 0,
+  revenueToday: 0,
+  revenueWeek: 0,
+  revenueMonth: 0,
+  avgRating: 0,
+  activeCustomers: 0,
+  popularProducts: [],
+};
 
 export default function AdminDashboard() {
-  const recentOrders = [...mockOrders, ...mockKitchenOrders]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    api.get('/dashboard')
+      .then((res) => {
+        const data = res.data.data;
+        setDashboardStats(data ?? defaultStats);
+        setRecentOrders(data?.recentOrders ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  const statCards = [
+    {
+      label: 'Pedidos hoy',
+      value: dashboardStats.ordersToday,
+      format: (v: number) => v.toString(),
+      icon: ShoppingBag,
+      color: '#FF6B35',
+      bg: 'bg-[#FF6B35]/10',
+    },
+    {
+      label: 'Ingresos hoy',
+      value: dashboardStats.revenueToday,
+      format: formatPrice,
+      icon: DollarSign,
+      color: '#2D6A4F',
+      bg: 'bg-[#2D6A4F]/10',
+    },
+    {
+      label: 'Ingresos semana',
+      value: dashboardStats.revenueWeek,
+      format: formatPrice,
+      icon: TrendingUp,
+      color: '#F5CB5C',
+      bg: 'bg-[#F5CB5C]/10',
+    },
+    {
+      label: 'Ingresos mes',
+      value: dashboardStats.revenueMonth,
+      format: formatPrice,
+      icon: CalendarDays,
+      color: '#3E2723',
+      bg: 'bg-[#3E2723]/10 dark:bg-[#F5CB5C]/10',
+    },
+    {
+      label: 'Rating promedio',
+      value: dashboardStats.avgRating,
+      format: (v: number) => v.toFixed(1),
+      icon: Star,
+      color: '#F5CB5C',
+      bg: 'bg-[#F5CB5C]/10',
+    },
+    {
+      label: 'Clientes activos',
+      value: dashboardStats.activeCustomers,
+      format: (v: number) => v.toString(),
+      icon: Users,
+      color: '#D62828',
+      bg: 'bg-[#D62828]/10',
+    },
+  ];
 
   const maxProductCount = Math.max(
-    ...mockDashboardStats.popularProducts.map((p) => p.count),
+    1,
+    ...dashboardStats.popularProducts.map((p) => p.count),
   );
 
   return (
@@ -135,7 +167,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-[var(--text-muted)]">Top productos del mes</p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockDashboardStats.popularProducts.map((product, i) => {
+              {dashboardStats.popularProducts.map((product, i) => {
                 const percentage = (product.count / maxProductCount) * 100;
                 const barColors = [
                   'bg-[#FF6B35]',

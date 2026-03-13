@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,10 @@ import {
   X,
   User,
   LogOut,
+  Stamp,
+  Layers,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -24,7 +27,9 @@ const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/pedidos', label: 'Pedidos', icon: ClipboardList },
   { href: '/admin/productos', label: 'Productos', icon: UtensilsCrossed },
+  { href: '/admin/categorias', label: 'Categorías', icon: Layers },
   { href: '/admin/cupones', label: 'Cupones', icon: Ticket },
+  { href: '/admin/sellos', label: 'Sellos', icon: Stamp },
   { href: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   { href: '/cocina', label: 'Cocina', icon: ChefHat },
 ];
@@ -40,8 +45,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, user, router]);
+
+  if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">

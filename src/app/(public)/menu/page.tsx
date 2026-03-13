@@ -1,22 +1,35 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SlidersHorizontal, Flame } from 'lucide-react';
 import { Input } from '@/components/ui';
 import { ProductCard } from '@/components/products/ProductCard';
-import { mockProducts, mockCategories } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { Product, Category } from '@/types';
 
 const allCategory = { id: 'all', name: 'Todos', slug: 'todos' };
-const categories = [allCategory, ...mockCategories];
 
 export default function MenuPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<(Category | typeof allCategory)[]>([allCategory]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/products'),
+      api.get('/categories'),
+    ]).then(([prodRes, catRes]) => {
+      setProducts(prodRes.data.data);
+      setCategories([allCategory, ...catRes.data.data]);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   const filteredProducts = useMemo(() => {
-    let result = mockProducts.filter((p) => p.isActive);
+    let result = products.filter((p) => p.isActive);
 
     if (selectedCategory !== 'all') {
       result = result.filter((p) => p.categoryId === selectedCategory);
@@ -32,7 +45,7 @@ export default function MenuPage() {
     }
 
     return result;
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, products]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -53,7 +66,7 @@ export default function MenuPage() {
                 </h1>
               </div>
               <p className="text-sm text-[var(--text-muted)]">
-                {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+                {loading ? 'Cargando...' : `${filteredProducts.length} producto${filteredProducts.length !== 1 ? 's' : ''}`}
               </p>
             </div>
 
@@ -99,7 +112,7 @@ export default function MenuPage() {
       {/* Products grid */}
       <section className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         <AnimatePresence mode="wait">
-          {filteredProducts.length === 0 ? (
+          {filteredProducts.length === 0 && !loading ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}

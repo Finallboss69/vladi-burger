@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Button, Card, Input, Modal } from '@/components/ui';
 import { useNotificationStore } from '@/stores/notification-store';
-import { mockAddresses } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { cn, generateId } from '@/lib/utils';
 import type { Address } from '@/types';
 
@@ -52,7 +52,13 @@ const emptyForm: AddressForm = {
 export default function DireccionesPage() {
   const addNotification = useNotificationStore((s) => s.addNotification);
 
-  const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+
+  useEffect(() => {
+    api.get('/addresses')
+      .then((res) => setAddresses(res.data.data ?? []))
+      .catch(() => setAddresses([]));
+  }, []);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressForm>(emptyForm);
@@ -101,49 +107,46 @@ export default function DireccionesPage() {
     if (!validate()) return;
 
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
+    const payload = {
+      label: form.label,
+      street: form.street,
+      number: form.number,
+      floor: form.floor || undefined,
+      apartment: form.apartment || undefined,
+      city: form.city,
+      zipCode: form.zipCode,
+    };
 
-    if (editingId) {
-      setAddresses((prev) =>
-        prev.map((a) =>
-          a.id === editingId
-            ? {
-                ...a,
-                label: form.label,
-                street: form.street,
-                number: form.number,
-                floor: form.floor || undefined,
-                apartment: form.apartment || undefined,
-                city: form.city,
-                zipCode: form.zipCode,
-              }
-            : a,
-        ),
-      );
-      addNotification({ type: 'success', title: 'Direccion actualizada', message: 'Se guardo correctamente' });
-    } else {
-      const newAddress: Address = {
-        id: generateId(),
-        userId: 'u1',
-        label: form.label,
-        street: form.street,
-        number: form.number,
-        floor: form.floor || undefined,
-        apartment: form.apartment || undefined,
-        city: form.city,
-        zipCode: form.zipCode,
-      };
-      setAddresses((prev) => [...prev, newAddress]);
-      addNotification({ type: 'success', title: 'Direccion agregada', message: 'Nueva direccion guardada' });
+    try {
+      if (editingId) {
+        const res = await api.put(`/addresses/${editingId}`, payload);
+        const updated = res.data.data;
+        setAddresses((prev) =>
+          prev.map((a) => (a.id === editingId ? { ...a, ...updated } : a)),
+        );
+        addNotification({ type: 'success', title: 'Direccion actualizada', message: 'Se guardo correctamente' });
+      } else {
+        const res = await api.post('/addresses', payload);
+        const newAddress = res.data.data;
+        setAddresses((prev) => [...prev, newAddress]);
+        addNotification({ type: 'success', title: 'Direccion agregada', message: 'Nueva direccion guardada' });
+      }
+      setModalOpen(false);
+    } catch {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar la direccion' });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setModalOpen(false);
   }
 
-  function handleDelete(id: string) {
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
-    addNotification({ type: 'info', title: 'Direccion eliminada', message: 'Se elimino la direccion' });
+  async function handleDelete(id: string) {
+    try {
+      await api.delete(`/addresses/${id}`);
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+      addNotification({ type: 'info', title: 'Direccion eliminada', message: 'Se elimino la direccion' });
+    } catch {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar la direccion' });
+    }
   }
 
   function getFullAddress(address: Address): string {

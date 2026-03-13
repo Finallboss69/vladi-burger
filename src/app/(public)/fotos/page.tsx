@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { mockPhotos } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { CustomerPhoto } from '@/types';
 
@@ -22,6 +22,7 @@ function PhotoGridItem({
 
   function handleLike(e: React.MouseEvent) {
     e.stopPropagation();
+    api.post(`/photos/${photo.id}/like`).catch(() => {});
     if (hasLiked) {
       setLikes((l) => l - 1);
       setHasLiked(false);
@@ -97,6 +98,7 @@ function PhotoLightbox({
   const [hasLiked, setHasLiked] = useState(photo.hasLiked ?? false);
 
   function handleLike() {
+    api.post(`/photos/${photo.id}/like`).catch(() => {});
     if (hasLiked) {
       setLikes((l) => l - 1);
       setHasLiked(false);
@@ -169,7 +171,16 @@ function PhotoLightbox({
 }
 
 export default function FotosPage() {
+  const [photos, setPhotos] = useState<CustomerPhoto[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<CustomerPhoto | null>(null);
+
+  useEffect(() => {
+    api.get('/photos')
+      .then((res) => setPhotos(res.data.data ?? []))
+      .catch(() => setPhotos([]));
+  }, []);
+
+  const approvedPhotos = photos.filter((p) => p.isApproved);
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -227,9 +238,7 @@ export default function FotosPage() {
       {/* Photo grid */}
       <section className="container mx-auto px-4 pb-16">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-          {mockPhotos
-            .filter((p) => p.isApproved)
-            .map((photo, i) => (
+          {approvedPhotos.map((photo, i) => (
               <PhotoGridItem
                 key={photo.id}
                 photo={photo}
@@ -239,7 +248,7 @@ export default function FotosPage() {
             ))}
         </div>
 
-        {mockPhotos.filter((p) => p.isApproved).length === 0 && (
+        {approvedPhotos.length === 0 && (
           <div className="py-20 text-center">
             <span className="text-5xl">📸</span>
             <p className="mt-4 text-lg text-[var(--text-muted)]">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,8 +23,14 @@ import { useCartStore } from '@/stores/cart-store';
 import { useOrderStore } from '@/stores/order-store';
 import { useNotificationStore } from '@/stores/notification-store';
 import { formatPrice } from '@/lib/utils';
-import { mockAddresses, mockTimeSlots } from '@/lib/mock-data';
+import api from '@/lib/api';
 import type { DeliveryType, Address, OrderStatus } from '@/types';
+
+interface TimeSlot {
+  time: string;
+  available: boolean;
+  remainingSlots: number;
+}
 
 const STEPS = [
   { id: 1, label: 'Entrega', icon: Truck },
@@ -62,6 +68,21 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+
+  useEffect(() => {
+    api.get('/addresses')
+      .then((res) => setSavedAddresses(res.data.data ?? []))
+      .catch(() => setSavedAddresses([]));
+  }, []);
+
+  useEffect(() => {
+    const dayOfWeek = new Date().getDay();
+    api.get(`/delivery?dayOfWeek=${dayOfWeek}`)
+      .then((res) => setTimeSlots(res.data.data ?? []))
+      .catch(() => setTimeSlots([]));
+  }, []);
 
   // New address form state
   const [newAddress, setNewAddress] = useState({
@@ -108,25 +129,69 @@ export default function CheckoutPage() {
 
   const handleConfirmOrder = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const res = await api.post('/orders', {
+        items: items.map((i) => ({
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+          extras: i.extras,
+          isCustom: i.isCustom,
+        })),
+        deliveryType,
+        addressId: selectedAddress?.id,
+        scheduledTime: selectedTimeSlot,
+        paymentMethod,
+        notes,
+        couponCode,
+      });
 
-    const orderId = `o-${Date.now()}`;
-    setActiveOrder(orderId, 'PENDING' as OrderStatus);
-    setOrderConfirmed(true);
+      const orderId = res.data.data?.id ?? `o-${Date.now()}`;
 
-    addNotification({
-      type: 'success',
-      title: 'Pedido confirmado',
-      message: 'Tu pedido se realizo con exito. Te avisaremos cuando este listo.',
-      duration: 5000,
-    });
+      // For MercadoPago and card payments, redirect to MercadoPago checkout
+      if (paymentMethod === 'mercadopago' || paymentMethod === 'card') {
+        try {
+          const mpRes = await api.post('/payments/mercadopago', { orderId });
+          const initPoint = mpRes.data.data?.initPoint;
+          if (initPoint) {
+            clear();
+            window.location.href = initPoint;
+            return;
+          }
+        } catch {
+          addNotification({
+            type: 'error',
+            title: 'Error de pago',
+            message: 'No se pudo iniciar el pago con MercadoPago. Intenta de nuevo.',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
 
-    // Wait for animation then redirect
-    setTimeout(() => {
-      clear();
-      router.push(`/pedido/${orderId}`);
-    }, 2500);
+      // For cash and transfer, just confirm locally
+      setActiveOrder(orderId, 'PENDING' as OrderStatus);
+      setOrderConfirmed(true);
+
+      addNotification({
+        type: 'success',
+        title: 'Pedido confirmado',
+        message: 'Tu pedido se realizo con exito. Te avisaremos cuando este listo.',
+        duration: 5000,
+      });
+
+      setTimeout(() => {
+        clear();
+        router.push(`/pedido/${orderId}`);
+      }, 2500);
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo confirmar el pedido. Intenta de nuevo.',
+      });
+      setIsSubmitting(false);
+    }
   };
 
   // Success animation overlay
@@ -313,7 +378,7 @@ export default function CheckoutPage() {
                   </h2>
 
                   <div className="flex flex-col gap-4">
-                    {mockAddresses.map((addr) => (
+                    {savedAddresses.map((addr) => (
                       <motion.button
                         key={addr.id}
                         whileTap={{ scale: 0.98 }}
@@ -451,7 +516,7 @@ export default function CheckoutPage() {
                   </h2>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {mockTimeSlots.map((slot) => (
+                    {timeSlots.map((slot) => (
                       <motion.button
                         key={slot.time}
                         whileTap={slot.available ? { scale: 0.95 } : undefined}

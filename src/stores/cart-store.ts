@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import api from '@/lib/api';
 import type { CartItem } from '@/types';
 
 interface CartState {
@@ -11,7 +12,7 @@ interface CartState {
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, qty: number) => void;
-  applyCoupon: (code: string) => void;
+  applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => void;
   clear: () => void;
 }
@@ -69,15 +70,25 @@ export const useCartStore = create<CartState>()(
             return { items: updatedItems, ...computeTotals(updatedItems, state.discount) };
           }, false, 'updateQuantity'),
 
-        applyCoupon: (code: string) =>
-          set((state) => {
-            const discount = Math.round(state.subtotal * 0.1);
-            return {
+        applyCoupon: async (code: string) => {
+          const state = useCartStore.getState();
+          try {
+            const res = await api.post('/coupons/validate', { code, subtotal: state.subtotal });
+            const discount = res.data.data?.discount ?? 0;
+            set({
               couponCode: code,
               discount,
               ...computeTotals(state.items, discount),
-            };
-          }, false, 'applyCoupon'),
+            }, false, 'applyCoupon');
+          } catch (err) {
+            set({
+              couponCode: null,
+              discount: 0,
+              ...computeTotals(state.items, 0),
+            }, false, 'applyCoupon-fail');
+            throw err;
+          }
+        },
 
         removeCoupon: () =>
           set((state) => ({

@@ -44,17 +44,17 @@ export default function CarritoPage() {
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
     if (!code) {
       setCouponError('Ingresa un codigo de cupon');
       return;
     }
-    if (code === 'VLADI10' || code === 'BURGER20') {
-      applyCoupon(code);
+    try {
+      await applyCoupon(code);
       setCouponError('');
       setCouponInput('');
-    } else {
+    } catch {
       setCouponError('Cupon invalido o expirado');
     }
   };

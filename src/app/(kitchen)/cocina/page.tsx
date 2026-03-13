@@ -15,7 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockOrders, mockKitchenOrders } from '@/lib/mock-data';
+import api from '@/lib/api';
 import type { Order, OrderStatus } from '@/types';
 
 function getMinutesSince(dateStr: string): number {
@@ -76,18 +76,22 @@ const statusFlow: Record<string, OrderStatus | null> = {
 };
 
 export default function KitchenDisplay() {
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const allOrders = [...mockOrders, ...mockKitchenOrders];
-    return allOrders.filter(
-      (o) =>
-        o.status === 'PENDING' ||
-        o.status === 'PREPARING' ||
-        o.status === 'READY',
-    );
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [, setTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fetch kitchen orders from API
+  useEffect(() => {
+    function fetchOrders() {
+      api.get('/orders?status=PENDING,PREPARING,READY')
+        .then((res) => setOrders(res.data.data ?? []))
+        .catch(() => {});
+    }
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Force re-render every 30s to update elapsed times
   useEffect(() => {
@@ -95,68 +99,6 @@ export default function KitchenDisplay() {
     return () => clearInterval(interval);
   }, []);
 
-  // Simulated auto-refresh: add a new order every 45 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOrders((prev) => {
-        // Simulate a new random order
-        const orderNum = 1050 + Math.floor(Math.random() * 50);
-        const exists = prev.some((o) => o.orderNumber === orderNum);
-        if (exists) return prev;
-
-        const newOrder: Order = {
-          id: `sim-${orderNum}`,
-          orderNumber: orderNum,
-          userId: 'sim',
-          status: 'PENDING' as OrderStatus,
-          items: [
-            {
-              id: `si-${orderNum}-1`,
-              name: ['Vladi Clásica', 'Vladi BBQ', 'Vladi Doble', 'Combo Vladi'][
-                Math.floor(Math.random() * 4)
-              ],
-              price: 4500,
-              quantity: Math.floor(Math.random() * 2) + 1,
-              extras: Math.random() > 0.5 ? [{ id: 'e1', name: 'Bacon', price: 800 }] : [],
-              isCustom: false,
-            },
-            ...(Math.random() > 0.5
-              ? [
-                  {
-                    id: `si-${orderNum}-2`,
-                    name: 'Papas Fritas',
-                    price: 1800,
-                    quantity: 1,
-                    extras: [],
-                    isCustom: false,
-                  },
-                ]
-              : []),
-          ],
-          subtotal: 6300,
-          discount: 0,
-          total: 6300,
-          deliveryType: Math.random() > 0.5 ? ('DELIVERY' as Order['deliveryType']) : ('PICKUP' as Order['deliveryType']),
-          notes: Math.random() > 0.7 ? 'Sin cebolla' : undefined,
-          pointsEarned: 63,
-          pointsRedeemed: 0,
-          source: (['WEB', 'RAPPI', 'PEDIDOSYA'] as Order['source'][])[
-            Math.floor(Math.random() * 3)
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (soundEnabled) {
-          playNotification();
-        }
-
-        return [...prev, newOrder];
-      });
-    }, 45000);
-
-    return () => clearInterval(interval);
-  }, [soundEnabled]);
 
   function playNotification() {
     try {
@@ -180,6 +122,7 @@ export default function KitchenDisplay() {
           if (o.id !== orderId) return o;
           const nextStatus = statusFlow[o.status];
           if (!nextStatus) return o;
+          api.patch(`/orders/${orderId}`, { status: nextStatus }).catch(() => {});
           if (soundEnabled && nextStatus === 'READY') {
             playNotification();
           }

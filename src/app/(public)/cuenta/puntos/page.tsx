@@ -1,33 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Crown, Star, Gift, Trophy,
-  ShoppingBag, Sparkles, Clock, Check,
+  ArrowLeft, Gift, Stamp, PartyPopper, Ticket,
 } from 'lucide-react';
-import { Button, Card, Badge } from '@/components/ui';
+import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationStore } from '@/stores/notification-store';
-import { mockUser, mockRewards } from '@/lib/mock-data';
-import { cn, getVipColor } from '@/lib/utils';
-
-const levels = [
-  { name: 'BRONZE', points: 0, icon: Star, color: 'text-amber-700', bg: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-amber-300 dark:border-amber-700' },
-  { name: 'SILVER', points: 200, icon: Crown, color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800/50', border: 'border-gray-300 dark:border-gray-600' },
-  { name: 'GOLD', points: 500, icon: Trophy, color: 'text-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30', border: 'border-yellow-400 dark:border-yellow-600' },
-  { name: 'PLATINUM', points: 1000, icon: Sparkles, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-400 dark:border-purple-600' },
-];
-
-const mockHistory = [
-  { id: 'h1', date: '2026-03-10', description: 'Pedido #1001', points: 116, type: 'earned' as const },
-  { id: 'h2', date: '2026-03-08', description: 'Pedido #998', points: 85, type: 'earned' as const },
-  { id: 'h3', date: '2026-03-05', description: 'Canje: Papas Gratis', points: -200, type: 'redeemed' as const },
-  { id: 'h4', date: '2026-03-02', description: 'Pedido #985', points: 142, type: 'earned' as const },
-  { id: 'h5', date: '2026-02-28', description: 'Pedido #972', points: 95, type: 'earned' as const },
-  { id: 'h6', date: '2026-02-25', description: 'Bonus bienvenida', points: 50, type: 'earned' as const },
-];
+import api from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 const container = {
   hidden: { opacity: 0 },
@@ -39,36 +22,88 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+interface StampData {
+  config: {
+    stampsRequired: number;
+    prizeName: string;
+    prizeDescription: string;
+    prizeDiscount: number;
+  } | null;
+  card: {
+    stamps: number;
+    completed: number;
+    lastStampAt: string | null;
+  } | null;
+  canRedeem: boolean;
+}
+
 export default function PuntosPage() {
-  const authUser = useAuthStore((s) => s.user);
+  const user = useAuthStore((s) => s.user);
   const addNotification = useNotificationStore((s) => s.addNotification);
-  const user = authUser ?? mockUser;
 
-  const [points, setPoints] = useState(user.loyaltyPoints);
-  const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [data, setData] = useState<StampData | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const currentLevelIndex = levels.findIndex((l, i) => {
-    const next = levels[i + 1];
-    return !next || points < next.points;
-  });
-  const currentLevel = levels[currentLevelIndex] ?? levels[0];
-  const nextLevel = levels[currentLevelIndex + 1];
+  useEffect(() => {
+    api.get('/stamps')
+      .then((res) => setData(res.data.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const progressPercent = nextLevel
-    ? Math.min(100, ((points - currentLevel.points) / (nextLevel.points - currentLevel.points)) * 100)
-    : 100;
-
-  async function handleRedeem(rewardId: string, cost: number, rewardName: string) {
-    if (points < cost) {
-      addNotification({ type: 'warning', title: 'Puntos insuficientes', message: `Necesitas ${cost - points} puntos mas` });
-      return;
+  async function handleRedeem() {
+    setRedeeming(true);
+    try {
+      const res = await api.post('/stamps');
+      const result = res.data.data;
+      setCouponCode(result.couponCode);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              card: prev.card
+                ? {
+                    ...prev.card,
+                    stamps: result.stampsRemaining,
+                    completed: result.timesCompleted,
+                  }
+                : prev.card,
+              canRedeem: false,
+            }
+          : prev,
+      );
+      addNotification({
+        type: 'success',
+        title: 'Premio canjeado!',
+        message: `Tu codigo de cupon es: ${result.couponCode}`,
+      });
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo canjear el premio',
+      });
+    } finally {
+      setRedeeming(false);
     }
+  }
 
-    setRedeeming(rewardId);
-    await new Promise((r) => setTimeout(r, 800));
-    setPoints((p) => p - cost);
-    addNotification({ type: 'success', title: 'Canje exitoso!', message: `Canjeaste: ${rewardName}` });
-    setRedeeming(null);
+  const config = data?.config;
+  const card = data?.card;
+  const stamps = card?.stamps ?? 0;
+  const required = config?.stampsRequired ?? 5;
+  const filledStamps = Math.min(stamps, required);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#FF6B35] border-t-transparent" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -87,203 +122,235 @@ export default function PuntosPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mis puntos</h1>
-            <p className="text-sm text-[var(--text-muted)]">Programa de lealtad Vladi.burger</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tarjeta de Sellos</h1>
+            <p className="text-sm text-[var(--text-muted)]">
+              {config?.prizeDescription ?? 'Junta sellos y gana premios'}
+            </p>
           </div>
         </motion.div>
 
-        {/* Points display */}
-        <motion.div variants={item}>
-          <Card hover={false} className="overflow-hidden">
-            <div className="bg-gradient-to-br from-[#FF6B35] to-[#D62828] p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white/80">Tus puntos</p>
-                  <motion.p
-                    key={points}
-                    initial={{ scale: 1.2, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-4xl font-black"
-                  >
-                    {points}
-                  </motion.p>
-                </div>
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-                  <Gift className="h-8 w-8 text-white" />
-                </div>
-              </div>
-
-              {/* VIP level badge */}
-              <div className="mt-4 flex items-center gap-2">
-                <currentLevel.icon className="h-5 w-5" />
-                <span className="font-bold">Nivel {currentLevel.name}</span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="p-4">
-              {nextLevel ? (
-                <>
-                  <div className="mb-2 flex justify-between text-xs text-[var(--text-muted)]">
-                    <span>{currentLevel.name} ({currentLevel.points} pts)</span>
-                    <span>{nextLevel.name} ({nextLevel.points} pts)</span>
+        {!config ? (
+          <motion.div variants={item}>
+            <Card hover={false}>
+              <CardContent className="p-8 text-center">
+                <Stamp className="mx-auto h-12 w-12 text-[var(--text-muted)] mb-3" />
+                <p className="text-[var(--text-secondary)]">
+                  El programa de sellos no esta disponible en este momento
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
+          <>
+            {/* Stamp Card Visual */}
+            <motion.div variants={item}>
+              <Card hover={false} className="overflow-hidden">
+                <div className="bg-gradient-to-br from-[#FF6B35] to-[#D62828] p-6 text-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-white/80">Tu progreso</p>
+                      <p className="text-3xl font-black">
+                        {filledStamps} / {required}
+                      </p>
+                    </div>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+                      <Stamp className="h-7 w-7 text-white" />
+                    </div>
                   </div>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F5CB5C]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progressPercent}%` }}
-                      transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
-                    />
-                  </div>
-                  <p className="mt-2 text-center text-sm text-[var(--text-secondary)]">
-                    Te faltan <span className="font-bold text-[#FF6B35]">{nextLevel.points - points}</span> puntos para {nextLevel.name}
+                  <p className="text-sm text-white/70">
+                    {stamps >= required
+                      ? 'Tenes suficientes sellos para canjear tu premio!'
+                      : `Te faltan ${required - stamps} ${required - stamps === 1 ? 'sello' : 'sellos'} para tu premio`}
                   </p>
-                </>
-              ) : (
+                </div>
+
+                {/* Visual stamps grid */}
+                <CardContent className="p-5">
+                  <div className="grid grid-cols-5 gap-3">
+                    {Array.from({ length: required }).map((_, i) => {
+                      const isFilled = i < filledStamps;
+                      const isPrize = i === required - 1;
+                      return (
+                        <motion.div
+                          key={i}
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: i * 0.06, type: 'spring', stiffness: 300 }}
+                          className={cn(
+                            'relative flex aspect-square items-center justify-center rounded-xl border-2 transition-all',
+                            isFilled
+                              ? 'border-[#FF6B35] bg-[#FF6B35]/10'
+                              : 'border-dashed border-[var(--border-color)] bg-[var(--bg-tertiary)]/50',
+                            isPrize && !isFilled && 'border-[#F5CB5C] bg-[#F5CB5C]/5',
+                          )}
+                        >
+                          {isPrize ? (
+                            isFilled ? (
+                              <Gift className="h-6 w-6 text-[#FF6B35]" />
+                            ) : (
+                              <Gift className="h-6 w-6 text-[#F5CB5C]/60" />
+                            )
+                          ) : isFilled ? (
+                            <motion.div
+                              initial={{ rotate: -20, scale: 0 }}
+                              animate={{ rotate: 0, scale: 1 }}
+                              transition={{ delay: i * 0.06 + 0.1, type: 'spring' }}
+                            >
+                              <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#FF6B35]" fill="currentColor">
+                                <circle cx="12" cy="12" r="10" opacity="0.2" />
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+                                <text x="12" y="16" textAnchor="middle" fontSize="10" fontWeight="bold" fill="currentColor">
+                                  V
+                                </text>
+                              </svg>
+                            </motion.div>
+                          ) : (
+                            <span className="text-sm font-bold text-[var(--text-muted)]">
+                              {i + 1}
+                            </span>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-4">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F5CB5C]"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(filledStamps / required) * 100}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Prize info */}
+            <motion.div variants={item}>
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F5CB5C]/20">
+                      <Gift className="h-6 w-6 text-[#F5CB5C]" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-[var(--text-primary)]">{config.prizeName}</h3>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                        {config.prizeDescription}
+                      </p>
+                      <p className="mt-2 text-xs text-[var(--text-muted)]">
+                        {config.prizeDiscount === 100
+                          ? 'Completamente gratis'
+                          : `${config.prizeDiscount}% de descuento`}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Redeem button */}
+            {data?.canRedeem && !couponCode && (
+              <motion.div variants={item}>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleRedeem}
+                  loading={redeeming}
+                  icon={<PartyPopper className="h-5 w-5" />}
+                >
+                  Canjear premio
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Coupon code display */}
+            {couponCode && (
+              <motion.div
+                variants={item}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <Card hover={false} className="overflow-hidden">
+                  <div className="bg-[#2D6A4F] p-6 text-center text-white">
+                    <PartyPopper className="mx-auto mb-2 h-10 w-10" />
+                    <h3 className="text-lg font-bold">Felicitaciones!</h3>
+                    <p className="text-sm text-white/80 mt-1">
+                      Tu cupon de premio esta listo
+                    </p>
+                  </div>
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#2D6A4F] bg-[#2D6A4F]/5 p-4">
+                      <Ticket className="h-5 w-5 text-[#2D6A4F]" />
+                      <span className="text-xl font-black tracking-widest text-[#2D6A4F]">
+                        {couponCode}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-center text-sm text-[var(--text-muted)]">
+                      Usa este codigo en tu proximo pedido. Valido por 30 dias.
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Stats */}
+            <motion.div variants={item}>
+              <div className="grid grid-cols-2 gap-4">
+                <Card hover={false}>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-black text-[#FF6B35]">{stamps}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Sellos acumulados</p>
+                  </CardContent>
+                </Card>
+                <Card hover={false}>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-black text-[#2D6A4F]">{card?.completed ?? 0}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Premios canjeados</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+
+            {/* How it works */}
+            <motion.div variants={item}>
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <h3 className="font-bold text-[var(--text-primary)] mb-3">Como funciona?</h3>
+                  <div className="space-y-3">
+                    {[
+                      { step: '1', text: 'Hace tu pedido de Vladi Burgers como siempre' },
+                      { step: '2', text: `Junta ${required} sellos con cada compra` },
+                      { step: '3', text: `Canjea tu premio: ${config.prizeName}` },
+                      { step: '4', text: 'Usa el cupon en tu proximo pedido' },
+                    ].map((s) => (
+                      <div key={s.step} className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FF6B35]/10 text-sm font-bold text-[#FF6B35]">
+                          {s.step}
+                        </div>
+                        <p className="text-sm text-[var(--text-secondary)]">{s.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {card?.completed && card.completed > 0 ? (
+              <motion.div variants={item}>
                 <div className="text-center">
                   <Badge variant="success" size="md">
-                    Nivel maximo alcanzado!
+                    Ya canjeaste {card.completed} {card.completed === 1 ? 'premio' : 'premios'}!
                   </Badge>
                 </div>
-              )}
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* VIP levels roadmap */}
-        <motion.div variants={item}>
-          <h2 className="mb-3 text-lg font-bold text-[var(--text-primary)]">Niveles VIP</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {levels.map((level) => {
-              const isActive = level.name === currentLevel.name;
-              const isAchieved = points >= level.points;
-              return (
-                <Card
-                  key={level.name}
-                  hover={false}
-                  className={cn(
-                    'flex flex-col items-center gap-2 p-4 text-center transition-all',
-                    isActive && `ring-2 ring-[#FF6B35] ${level.bg}`,
-                    !isActive && isAchieved && level.bg,
-                    !isAchieved && 'opacity-50',
-                  )}
-                >
-                  <level.icon className={cn('h-6 w-6', level.color)} />
-                  <p className={cn('text-sm font-bold', level.color)}>
-                    {level.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {level.points} pts
-                  </p>
-                  {isActive && (
-                    <Badge variant="warning" size="sm">Actual</Badge>
-                  )}
-                  {isAchieved && !isActive && (
-                    <Check className="h-4 w-4 text-[#2D6A4F]" />
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Available rewards */}
-        <motion.div variants={item}>
-          <h2 className="mb-3 text-lg font-bold text-[var(--text-primary)]">Recompensas disponibles</h2>
-          <div className="flex flex-col gap-4">
-            {mockRewards.map((reward) => {
-              const canRedeem = points >= reward.pointsCost;
-              const isRedeeming = redeeming === reward.id;
-              return (
-                <motion.div key={reward.id} variants={item}>
-                  <Card hover={false} className="overflow-hidden">
-                    <div className="flex flex-col sm:flex-row">
-                      {/* Image */}
-                      {reward.imageUrl && (
-                        <div className="relative h-32 w-full shrink-0 sm:h-auto sm:w-36">
-                          <img
-                            src={reward.imageUrl}
-                            alt={reward.name}
-                            className="h-full w-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[var(--bg-secondary)] sm:bg-gradient-to-l" />
-                        </div>
-                      )}
-                      {/* Content */}
-                      <div className="flex flex-1 flex-col justify-between gap-3 p-4">
-                        <div>
-                          <h3 className="font-bold text-[var(--text-primary)]">{reward.name}</h3>
-                          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{reward.description}</p>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <Star className="h-4 w-4 text-[#F5CB5C]" />
-                            <span className="font-bold text-[var(--text-primary)]">
-                              {reward.pointsCost} pts
-                            </span>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleRedeem(reward.id, reward.pointsCost, reward.name)}
-                            disabled={!canRedeem}
-                            loading={isRedeeming}
-                            icon={<Gift className="h-4 w-4" />}
-                          >
-                            {canRedeem ? 'Canjear' : 'Puntos insuficientes'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Points history */}
-        <motion.div variants={item}>
-          <h2 className="mb-3 text-lg font-bold text-[var(--text-primary)]">Historial de puntos</h2>
-          <Card hover={false} className="divide-y divide-[var(--border-color)] p-0 overflow-hidden">
-            {mockHistory.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-[var(--bg-tertiary)]/50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    entry.type === 'earned'
-                      ? 'bg-[#2D6A4F]/10 text-[#2D6A4F]'
-                      : 'bg-[#FF6B35]/10 text-[#FF6B35]',
-                  )}>
-                    {entry.type === 'earned' ? (
-                      <ShoppingBag className="h-4 w-4" />
-                    ) : (
-                      <Gift className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">
-                      {entry.description}
-                    </p>
-                    <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                      <Clock className="h-3 w-3" />
-                      {entry.date}
-                    </div>
-                  </div>
-                </div>
-                <span className={cn(
-                  'text-sm font-bold',
-                  entry.points > 0 ? 'text-[#2D6A4F]' : 'text-[#D62828]',
-                )}>
-                  {entry.points > 0 ? '+' : ''}{entry.points} pts
-                </span>
-              </div>
-            ))}
-          </Card>
-        </motion.div>
+              </motion.div>
+            ) : null}
+          </>
+        )}
       </motion.div>
 
       {/* Mobile bottom nav spacer */}

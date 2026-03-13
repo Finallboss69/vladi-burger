@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Trash2,
+  Edit2,
   ToggleLeft,
   ToggleRight,
   Ticket,
@@ -18,64 +19,9 @@ import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
 import { Badge } from '@/components/ui';
 import { cn, formatPrice, formatDate, generateId } from '@/lib/utils';
+import api from '@/lib/api';
 import type { Coupon } from '@/types';
 
-const initialCoupons: Coupon[] = [
-  {
-    id: 'c1',
-    code: 'VLADI10',
-    discount: 10,
-    isPercent: true,
-    minOrder: 3000,
-    maxUses: 100,
-    usedCount: 47,
-    expiresAt: '2026-04-30T23:59:59Z',
-    isActive: true,
-  },
-  {
-    id: 'c2',
-    code: 'PRIMERAVEZ',
-    discount: 15,
-    isPercent: true,
-    minOrder: 0,
-    maxUses: 500,
-    usedCount: 213,
-    expiresAt: '2026-06-01T23:59:59Z',
-    isActive: true,
-  },
-  {
-    id: 'c3',
-    code: 'BURGER500',
-    discount: 500,
-    isPercent: false,
-    minOrder: 5000,
-    maxUses: 50,
-    usedCount: 50,
-    expiresAt: '2026-03-15T23:59:59Z',
-    isActive: false,
-  },
-  {
-    id: 'c4',
-    code: 'AMIGOS20',
-    discount: 20,
-    isPercent: true,
-    minOrder: 8000,
-    maxUses: 200,
-    usedCount: 34,
-    expiresAt: '2026-05-15T23:59:59Z',
-    isActive: true,
-  },
-  {
-    id: 'c5',
-    code: 'DELIVERY0',
-    discount: 1000,
-    isPercent: false,
-    minOrder: 4000,
-    maxUses: 150,
-    usedCount: 89,
-    isActive: true,
-  },
-];
 
 interface CouponForm {
   code: string;
@@ -96,11 +42,21 @@ const emptyForm: CouponForm = {
 };
 
 export default function AdminCupones() {
-  const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [form, setForm] = useState<CouponForm>(emptyForm);
 
+  useEffect(() => {
+    api.get('/coupons')
+      .then((res) => setCoupons(res.data.data ?? []))
+      .catch(() => setCoupons([]));
+  }, []);
+
   function toggleActive(couponId: string) {
+    const coupon = coupons.find((c) => c.id === couponId);
+    if (!coupon) return;
+    api.patch(`/coupons/${couponId}`, { isActive: !coupon.isActive }).catch(() => {});
     setCoupons((prev) =>
       prev.map((c) =>
         c.id === couponId ? { ...c, isActive: !c.isActive } : c,
@@ -108,29 +64,56 @@ export default function AdminCupones() {
     );
   }
 
+  function openEdit(coupon: Coupon) {
+    setEditingCoupon(coupon);
+    setForm({
+      code: coupon.code,
+      discount: coupon.discount.toString(),
+      isPercent: coupon.isPercent,
+      minOrder: coupon.minOrder.toString(),
+      maxUses: coupon.maxUses.toString(),
+      expiresAt: coupon.expiresAt ? new Date(coupon.expiresAt).toISOString().split('T')[0] : '',
+    });
+    setShowForm(true);
+  }
+
   function deleteCoupon(couponId: string) {
+    api.delete(`/coupons/${couponId}`).catch(() => {});
     setCoupons((prev) => prev.filter((c) => c.id !== couponId));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.code.trim() || !form.discount) return;
 
-    const newCoupon: Coupon = {
-      id: generateId(),
+    const payload = {
       code: form.code.toUpperCase().trim(),
       discount: Number(form.discount),
       isPercent: form.isPercent,
       minOrder: Number(form.minOrder) || 0,
       maxUses: Number(form.maxUses) || 999,
-      usedCount: 0,
       expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
-      isActive: true,
     };
 
-    setCoupons((prev) => [newCoupon, ...prev]);
+    try {
+      if (editingCoupon) {
+        const res = await api.patch(`/coupons/${editingCoupon.id}`, payload);
+        const updated = res.data.data;
+        setCoupons((prev) =>
+          prev.map((c) => (c.id === editingCoupon.id ? { ...c, ...updated } : c)),
+        );
+      } else {
+        const res = await api.post('/coupons', payload);
+        const newCoupon = res.data.data;
+        setCoupons((prev) => [newCoupon, ...prev]);
+      }
+    } catch {
+      // error handled silently
+    }
+
     setForm(emptyForm);
     setShowForm(false);
+    setEditingCoupon(null);
   }
 
   function updateField(field: keyof CouponForm, value: string | boolean) {
@@ -150,7 +133,17 @@ export default function AdminCupones() {
         <Button
           variant="primary"
           icon={<Plus className="h-5 w-5" />}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setEditingCoupon(null);
+              setForm(emptyForm);
+            } else {
+              setEditingCoupon(null);
+              setForm(emptyForm);
+              setShowForm(true);
+            }
+          }}
         >
           {showForm ? 'Cancelar' : 'Nuevo cupón'}
         </Button>
@@ -168,7 +161,9 @@ export default function AdminCupones() {
           >
             <Card hover={false}>
               <CardHeader>
-                <h2 className="text-lg font-bold text-[var(--text-primary)]">Crear cupón</h2>
+                <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                  {editingCoupon ? 'Editar cupón' : 'Crear cupón'}
+                </h2>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -261,12 +256,13 @@ export default function AdminCupones() {
                       onClick={() => {
                         setShowForm(false);
                         setForm(emptyForm);
+                        setEditingCoupon(null);
                       }}
                     >
                       Cancelar
                     </Button>
                     <Button type="submit" variant="primary">
-                      Crear cupón
+                      {editingCoupon ? 'Guardar cambios' : 'Crear cupón'}
                     </Button>
                   </div>
                 </form>
@@ -388,6 +384,13 @@ export default function AdminCupones() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openEdit(coupon)}
+                              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[#FF6B35]/10 hover:text-[#FF6B35] transition-colors"
+                              title="Editar"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
                             <button
                               onClick={() => toggleActive(coupon.id)}
                               className={cn(

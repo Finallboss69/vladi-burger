@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
@@ -20,9 +20,12 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
   const addNotification = useNotificationStore((s) => s.addNotification);
 
   const [email, setEmail] = useState('');
@@ -31,6 +34,39 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  // Handle Google OAuth callback token
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const name = searchParams.get('name');
+    const error = searchParams.get('error');
+
+    if (error) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error,
+      });
+      // Clean URL
+      router.replace('/login');
+      return;
+    }
+
+    if (token) {
+      // Set token in store, then fetch user data
+      useAuthStore.setState({ token, isAuthenticated: true });
+      fetchMe().then(() => {
+        addNotification({
+          type: 'success',
+          title: 'Bienvenido!',
+          message: name
+            ? `Iniciaste sesion como ${name}`
+            : 'Iniciaste sesion con Google',
+        });
+        router.replace('/');
+      });
+    }
+  }, [searchParams, addNotification, fetchMe, router]);
 
   function validate(): boolean {
     const newErrors: { email?: string; password?: string } = {};
@@ -53,29 +89,28 @@ export default function LoginPage() {
     if (!validate()) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    login(email, password);
-    addNotification({
-      type: 'success',
-      title: 'Bienvenido!',
-      message: 'Iniciaste sesion correctamente',
-    });
+    const success = await login(email, password);
     setLoading(false);
-    router.push('/');
+
+    if (success) {
+      addNotification({
+        type: 'success',
+        title: 'Bienvenido!',
+        message: 'Iniciaste sesion correctamente',
+      });
+      router.push('/');
+    } else {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Email o contrasena incorrectos',
+      });
+    }
   }
 
-  async function handleGoogleLogin() {
+  function handleGoogleLogin() {
     setGoogleLoading(true);
-    // Simulate Google OAuth flow
-    await new Promise((r) => setTimeout(r, 1200));
-    login('google@gmail.com', 'google-oauth');
-    addNotification({
-      type: 'success',
-      title: 'Bienvenido!',
-      message: 'Iniciaste sesion con Google',
-    });
-    setGoogleLoading(false);
-    router.push('/');
+    window.location.href = '/api/auth/google';
   }
 
   return (
@@ -192,5 +227,19 @@ export default function LoginPage() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center p-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF6B35] border-t-transparent" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

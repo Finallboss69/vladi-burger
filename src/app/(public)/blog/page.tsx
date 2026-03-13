@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui';
-import { mockBlogPosts } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { useNotificationStore } from '@/stores/notification-store';
 import type { BlogPost } from '@/types';
 
@@ -59,7 +59,17 @@ function BlogCard({ post, index }: { post: BlogPost; index: number }) {
 
 export default function BlogPage() {
   const [email, setEmail] = useState('');
+  const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>([]);
   const addNotification = useNotificationStore((s) => s.addNotification);
+
+  useEffect(() => {
+    api.get('/blog')
+      .then((res) => {
+        const posts: BlogPost[] = res.data.data ?? [];
+        setPublishedPosts(posts.filter((p) => p.isPublished));
+      })
+      .catch(() => setPublishedPosts([]));
+  }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +90,6 @@ export default function BlogPage() {
     });
     setEmail('');
   };
-
-  const publishedPosts = mockBlogPosts.filter((p) => p.isPublished);
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">

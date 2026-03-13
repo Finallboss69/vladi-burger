@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -24,7 +24,7 @@ import {
   getStatusLabel,
   getStatusColor,
 } from '@/lib/utils';
-import { mockOrders, mockKitchenOrders } from '@/lib/mock-data';
+import api from '@/lib/api';
 import type { Order, OrderStatus } from '@/types';
 
 type FilterTab = 'ALL' | string;
@@ -55,10 +55,13 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 };
 
 export default function AdminPedidos() {
-  const [allOrders, setAllOrders] = useState<Order[]>([
-    ...mockOrders,
-    ...mockKitchenOrders,
-  ]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    api.get('/orders')
+      .then((res) => setAllOrders(res.data.data ?? []))
+      .catch(() => setAllOrders([]));
+  }, []);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -85,17 +88,21 @@ export default function AdminPedidos() {
   }, [allOrders, activeFilter, searchQuery]);
 
   function advanceStatus(orderId: string) {
+    const order = allOrders.find((o) => o.id === orderId);
+    if (!order) return;
+    const nextStatus = statusFlow[order.status];
+    if (!nextStatus) return;
+    api.patch(`/orders/${orderId}`, { status: nextStatus }).catch(() => {});
     setAllOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
-        const nextStatus = statusFlow[o.status];
-        if (!nextStatus) return o;
         return { ...o, status: nextStatus, updatedAt: new Date().toISOString() };
       }),
     );
   }
 
   function cancelOrder(orderId: string) {
+    api.patch(`/orders/${orderId}`, { status: 'CANCELLED' }).catch(() => {});
     setAllOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;

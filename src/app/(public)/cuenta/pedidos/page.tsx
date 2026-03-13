@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -10,7 +10,7 @@ import {
 import { Button, Card, Badge } from '@/components/ui';
 import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
-import { mockOrders } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { formatPrice, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
 import type { Order, CartItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -203,6 +203,14 @@ function OrderCard({ order }: { order: Order }) {
 }
 
 export default function PedidosPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    api.get('/orders')
+      .then((res) => setOrders(res.data.data ?? []))
+      .catch(() => setOrders([]));
+  }, []);
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <motion.div
@@ -221,13 +229,13 @@ export default function PedidosPage() {
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mis pedidos</h1>
             <p className="text-sm text-[var(--text-muted)]">
-              {mockOrders.length} pedido{mockOrders.length !== 1 ? 's' : ''}
+              {orders.length} pedido{orders.length !== 1 ? 's' : ''}
             </p>
           </div>
         </motion.div>
 
         {/* Orders list */}
-        {mockOrders.length === 0 ? (
+        {orders.length === 0 ? (
           <motion.div
             variants={item}
             className="flex flex-col items-center gap-4 py-16"
@@ -244,7 +252,7 @@ export default function PedidosPage() {
           </motion.div>
         ) : (
           <div className="flex flex-col gap-4">
-            {mockOrders.map((order) => (
+            {orders.map((order) => (
               <motion.div key={order.id} variants={item}>
                 <OrderCard order={order} />
               </motion.div>

@@ -1,23 +1,27 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   Plus,
   Edit2,
+  Trash2,
   ToggleLeft,
   ToggleRight,
   Package,
-  Filter,
+  Upload,
+  X,
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
 import { Modal } from '@/components/ui';
 import { Badge } from '@/components/ui';
-import { cn, formatPrice, generateId } from '@/lib/utils';
-import { mockProducts, mockCategories } from '@/lib/mock-data';
+import { cn, formatPrice } from '@/lib/utils';
+import api from '@/lib/api';
 import type { Product, Category } from '@/types';
 
 interface ProductForm {
@@ -26,6 +30,7 @@ interface ProductForm {
   price: string;
   categoryId: string;
   stock: string;
+  imageUrl: string;
 }
 
 const emptyForm: ProductForm = {
@@ -34,15 +39,29 @@ const emptyForm: ProductForm = {
   price: '',
   categoryId: '',
   stock: '',
+  imageUrl: '',
 };
 
 export default function AdminProductos() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [uploading, setUploading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get('/products?active=false')
+      .then((res) => setProducts(res.data.data ?? []))
+      .catch(() => setProducts([]));
+    api.get('/categories')
+      .then((res) => setCategories(res.data.data ?? []))
+      .catch(() => setCategories([]));
+  }, []);
 
   const filtered = useMemo(() => {
     let result = products;
@@ -74,11 +93,15 @@ export default function AdminProductos() {
       price: product.price.toString(),
       categoryId: product.categoryId,
       stock: product.stock.toString(),
+      imageUrl: product.imageUrl ?? '',
     });
     setModalOpen(true);
   }
 
   function toggleActive(productId: string) {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+    api.patch(`/products/${productId}`, { isActive: !product.isActive }).catch(() => {});
     setProducts((prev) =>
       prev.map((p) =>
         p.id === productId ? { ...p, isActive: !p.isActive } : p,
@@ -86,45 +109,69 @@ export default function AdminProductos() {
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function deleteProduct(productId: string) {
+    try {
+      await api.delete(`/products/${productId}`);
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+    } catch {
+      // error
+    }
+    setDeleteConfirm(null);
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'vladi-burger/products');
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setForm((prev) => ({ ...prev, imageUrl: res.data.data.url }));
+    } catch {
+      // error
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!form.name.trim() || !form.price || !form.categoryId) return;
 
-    const category = mockCategories.find((c) => c.id === form.categoryId);
+    const category = categories.find((c) => c.id === form.categoryId);
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+      categoryId: form.categoryId,
+      stock: Number(form.stock),
+      imageUrl: form.imageUrl || undefined,
+    };
 
-    if (editingProduct) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editingProduct.id
-            ? {
-                ...p,
-                name: form.name,
-                slug: form.name.toLowerCase().replace(/\s+/g, '-'),
-                description: form.description,
-                price: Number(form.price),
-                categoryId: form.categoryId,
-                category: category ?? p.category,
-                stock: Number(form.stock),
-              }
-            : p,
-        ),
-      );
-    } else {
-      const newProduct: Product = {
-        id: generateId(),
-        name: form.name,
-        slug: form.name.toLowerCase().replace(/\s+/g, '-'),
-        description: form.description,
-        price: Number(form.price),
-        categoryId: form.categoryId,
-        category,
-        stock: Number(form.stock),
-        isActive: true,
-        isCombo: false,
-        extras: [],
-      };
-      setProducts((prev) => [newProduct, ...prev]);
+    try {
+      if (editingProduct) {
+        const res = await api.put(`/products/${editingProduct.id}`, payload);
+        const updated = res.data.data;
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id
+              ? { ...p, ...updated, category: category ?? p.category }
+              : p,
+          ),
+        );
+      } else {
+        const res = await api.post('/products', payload);
+        const newProduct = res.data.data;
+        setProducts((prev) => [{ ...newProduct, category }, ...prev]);
+      }
+    } catch {
+      // error handled silently
     }
 
     setModalOpen(false);
@@ -173,7 +220,7 @@ export default function AdminProductos() {
           >
             Todas
           </button>
-          {mockCategories.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategoryFilter(cat.id)}
@@ -245,12 +292,10 @@ export default function AdminProductos() {
                   </div>
 
                   <CardContent>
-                    {/* Category */}
                     <p className="text-xs text-[var(--text-muted)] mb-1">
                       {product.category?.name ?? 'Sin categoría'}
                     </p>
 
-                    {/* Name + Price */}
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">
                         {product.name}
@@ -260,7 +305,6 @@ export default function AdminProductos() {
                       </span>
                     </div>
 
-                    {/* Stock */}
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-[var(--text-muted)]">
                         Stock:{' '}
@@ -311,6 +355,13 @@ export default function AdminProductos() {
                           <ToggleLeft className="h-6 w-6" />
                         )}
                       </button>
+                      <button
+                        onClick={() => setDeleteConfirm(product.id)}
+                        className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[#D62828]/10 hover:text-[#D62828] transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
@@ -319,6 +370,27 @@ export default function AdminProductos() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+        title="Eliminar producto"
+        description="Esta acción no se puede deshacer. ¿Estás seguro?"
+      >
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            className="!bg-[#D62828] hover:!bg-[#B71C1C]"
+            onClick={() => deleteConfirm && deleteProduct(deleteConfirm)}
+          >
+            Eliminar
+          </Button>
+        </div>
+      </Modal>
 
       {/* Create/Edit Modal */}
       <Modal
@@ -332,6 +404,63 @@ export default function AdminProductos() {
         }
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Image Upload */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">
+              Imagen
+            </label>
+            <div className="relative">
+              {form.imageUrl ? (
+                <div className="relative h-40 rounded-xl overflow-hidden border border-[var(--border-color)]">
+                  <img
+                    src={form.imageUrl}
+                    alt="Preview"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, imageUrl: '' }))}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    'flex flex-col items-center justify-center h-40 rounded-xl border-2 border-dashed border-[var(--border-color)] cursor-pointer transition-colors',
+                    'hover:border-[#FF6B35] hover:bg-[#FF6B35]/5',
+                    uploading && 'pointer-events-none opacity-60',
+                  )}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-8 w-8 text-[#FF6B35] animate-spin mb-2" />
+                      <span className="text-sm text-[var(--text-muted)]">Subiendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-[var(--text-muted)] mb-2" />
+                      <span className="text-sm text-[var(--text-muted)]">
+                        Click para subir imagen
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)] mt-1">
+                        JPG, PNG o WebP
+                      </span>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
           <Input
             label="Nombre"
             placeholder="Ej: Vladi Especial"
@@ -392,7 +521,7 @@ export default function AdminProductos() {
               )}
             >
               <option value="">Seleccionar categoría</option>
-              {mockCategories.map((cat) => (
+              {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>

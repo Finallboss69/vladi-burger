@@ -1,17 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
   ShoppingBag,
   Globe,
   Award,
-  Calendar,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui';
 import { cn, formatPrice } from '@/lib/utils';
-import { mockDashboardStats, mockOrders, mockKitchenOrders } from '@/lib/mock-data';
+import api from '@/lib/api';
+
+interface SourceData {
+  source: string;
+  label: string;
+  count: number;
+  color: string;
+}
+
+interface DayRevenue {
+  day: string;
+  value: number;
+}
+
+interface StatsData {
+  ordersToday: number;
+  ordersWeek: number;
+  ordersMonth: number;
+  revenueToday: number;
+  revenueWeek: number;
+  revenueMonth: number;
+  avgRating: number;
+  activeCustomers: number;
+  popularProducts: Array<{ name: string; count: number }>;
+  ordersBySource: SourceData[];
+  revenueByDay: DayRevenue[];
+}
 
 type TimeFilter = 'today' | 'week' | 'month';
 
@@ -20,48 +45,6 @@ const timeFilters: Array<{ key: TimeFilter; label: string }> = [
   { key: 'week', label: 'Semana' },
   { key: 'month', label: 'Mes' },
 ];
-
-// Mock revenue by day of week
-const revenueByDay = [
-  { day: 'Lun', value: 180000 },
-  { day: 'Mar', value: 145000 },
-  { day: 'Mié', value: 210000 },
-  { day: 'Jue', value: 195000 },
-  { day: 'Vie', value: 320000 },
-  { day: 'Sáb', value: 480000 },
-  { day: 'Dom', value: 320000 },
-];
-
-// Orders by source
-const allOrders = [...mockOrders, ...mockKitchenOrders];
-const ordersBySource = [
-  {
-    source: 'WEB',
-    label: 'Web',
-    count: allOrders.filter((o) => o.source === 'WEB').length,
-    color: '#FF6B35',
-    extraCount: 28,
-  },
-  {
-    source: 'RAPPI',
-    label: 'Rappi',
-    count: allOrders.filter((o) => o.source === 'RAPPI').length,
-    color: '#D62828',
-    extraCount: 12,
-  },
-  {
-    source: 'PEDIDOSYA',
-    label: 'PedidosYa',
-    count: allOrders.filter((o) => o.source === 'PEDIDOSYA').length,
-    color: '#F5CB5C',
-    extraCount: 7,
-  },
-];
-
-const totalSourceOrders = ordersBySource.reduce(
-  (sum, s) => sum + s.count + s.extraCount,
-  0,
-);
 
 const container = {
   hidden: { opacity: 0 },
@@ -73,22 +56,34 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const defaultStats: StatsData = {
+  ordersToday: 0,
+  ordersWeek: 0,
+  ordersMonth: 0,
+  revenueToday: 0,
+  revenueWeek: 0,
+  revenueMonth: 0,
+  avgRating: 0,
+  activeCustomers: 0,
+  popularProducts: [],
+  ordersBySource: [],
+  revenueByDay: [],
+};
+
 export default function AdminEstadisticas() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
+  const [stats, setStats] = useState<StatsData>(defaultStats);
 
-  const maxRevenue = Math.max(...revenueByDay.map((d) => d.value));
+  useEffect(() => {
+    api.get('/dashboard').then((res) => setStats(res.data.data)).catch(() => {});
+  }, []);
 
-  const revenueMultiplier: Record<TimeFilter, number> = {
-    today: 0.14,
-    week: 1,
-    month: 4.2,
-  };
+  const revenue = timeFilter === 'today' ? stats.revenueToday : timeFilter === 'week' ? stats.revenueWeek : stats.revenueMonth;
+  const orders = timeFilter === 'today' ? stats.ordersToday : timeFilter === 'week' ? stats.ordersWeek : stats.ordersMonth;
+  const avgTicket = orders > 0 ? Math.round(revenue / orders) : 0;
 
-  const ordersMultiplier: Record<TimeFilter, number> = {
-    today: 1,
-    week: 7,
-    month: 30,
-  };
+  const maxRevenue = Math.max(...(stats.revenueByDay.length > 0 ? stats.revenueByDay.map((d) => d.value) : [1]));
+  const totalSourceOrders = stats.ordersBySource.reduce((sum, s) => sum + s.count, 0);
 
   return (
     <motion.div
@@ -106,14 +101,13 @@ export default function AdminEstadisticas() {
           </p>
         </div>
 
-        {/* Time Filter */}
         <div className="flex rounded-xl border border-[var(--border-color)] overflow-hidden">
           {timeFilters.map((f) => (
             <button
               key={f.key}
               onClick={() => setTimeFilter(f.key)}
               className={cn(
-                'px-4 py-2 text-sm font-medium transition-colors',
+                'px-4 py-2 text-sm font-medium transition-colors cursor-pointer',
                 timeFilter === f.key
                   ? 'bg-[#FF6B35] text-white'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]',
@@ -128,45 +122,10 @@ export default function AdminEstadisticas() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          {
-            label: 'Ingresos',
-            value: formatPrice(
-              Math.round(mockDashboardStats.revenueWeek * revenueMultiplier[timeFilter]),
-            ),
-            icon: TrendingUp,
-            color: '#2D6A4F',
-            change: '+12.5%',
-          },
-          {
-            label: 'Pedidos',
-            value: Math.round(
-              mockDashboardStats.ordersToday * ordersMultiplier[timeFilter],
-            ).toString(),
-            icon: ShoppingBag,
-            color: '#FF6B35',
-            change: '+8.3%',
-          },
-          {
-            label: 'Ticket promedio',
-            value: formatPrice(
-              Math.round(
-                (mockDashboardStats.revenueWeek * revenueMultiplier[timeFilter]) /
-                  (mockDashboardStats.ordersToday * ordersMultiplier[timeFilter]),
-              ),
-            ),
-            icon: Award,
-            color: '#F5CB5C',
-            change: '+3.2%',
-          },
-          {
-            label: 'Clientes activos',
-            value: Math.round(
-              mockDashboardStats.activeCustomers * revenueMultiplier[timeFilter],
-            ).toString(),
-            icon: Globe,
-            color: '#D62828',
-            change: '+5.1%',
-          },
+          { label: 'Ingresos', value: formatPrice(revenue), icon: TrendingUp, color: '#2D6A4F' },
+          { label: 'Pedidos', value: orders.toString(), icon: ShoppingBag, color: '#FF6B35' },
+          { label: 'Ticket promedio', value: formatPrice(avgTicket), icon: Award, color: '#F5CB5C' },
+          { label: 'Clientes activos', value: stats.activeCustomers.toString(), icon: Globe, color: '#D62828' },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -180,9 +139,6 @@ export default function AdminEstadisticas() {
                     >
                       <Icon className="h-5 w-5" style={{ color: stat.color }} />
                     </div>
-                    <span className="text-xs font-medium text-[#2D6A4F] bg-[#2D6A4F]/10 px-2 py-0.5 rounded-full">
-                      {stat.change}
-                    </span>
                   </div>
                   <p className="text-xs text-[var(--text-muted)]">{stat.label}</p>
                   <p className="text-xl font-bold text-[var(--text-primary)] mt-0.5">
@@ -206,43 +162,30 @@ export default function AdminEstadisticas() {
                   Ingresos por día
                 </h2>
               </div>
-              <p className="text-xs text-[var(--text-muted)]">Desglose semanal</p>
+              <p className="text-xs text-[var(--text-muted)]">Semana actual</p>
             </CardHeader>
             <CardContent>
               <div className="flex items-end gap-3 h-48">
-                {revenueByDay.map((day, i) => {
-                  const height = (day.value / maxRevenue) * 100;
-                  const isToday = i === new Date().getDay() - 1;
+                {stats.revenueByDay.map((day, i) => {
+                  const height = maxRevenue > 0 ? (day.value / maxRevenue) * 100 : 0;
+                  const isToday = i === new Date().getDay();
                   return (
                     <div key={day.day} className="flex-1 flex flex-col items-center gap-2">
                       <span className="text-xs font-medium text-[var(--text-muted)] tabular-nums">
-                        {formatPrice(Math.round(day.value * revenueMultiplier[timeFilter]))}
+                        {formatPrice(day.value)}
                       </span>
                       <div className="w-full relative" style={{ height: '140px' }}>
                         <motion.div
                           initial={{ height: 0 }}
                           animate={{ height: `${height}%` }}
-                          transition={{
-                            duration: 0.6,
-                            delay: i * 0.08,
-                            ease: 'easeOut',
-                          }}
+                          transition={{ duration: 0.6, delay: i * 0.08, ease: 'easeOut' }}
                           className={cn(
                             'absolute bottom-0 w-full rounded-t-lg',
-                            isToday
-                              ? 'bg-[#FF6B35]'
-                              : 'bg-[#FF6B35]/30 dark:bg-[#FF6B35]/20',
+                            isToday ? 'bg-[#FF6B35]' : 'bg-[#FF6B35]/30 dark:bg-[#FF6B35]/20',
                           )}
                         />
                       </div>
-                      <span
-                        className={cn(
-                          'text-xs font-medium',
-                          isToday
-                            ? 'text-[#FF6B35]'
-                            : 'text-[var(--text-muted)]',
-                        )}
-                      >
+                      <span className={cn('text-xs font-medium', isToday ? 'text-[#FF6B35]' : 'text-[var(--text-muted)]')}>
                         {day.day}
                       </span>
                     </div>
@@ -266,15 +209,13 @@ export default function AdminEstadisticas() {
               <p className="text-xs text-[var(--text-muted)]">Distribución de canales</p>
             </CardHeader>
             <CardContent>
-              {/* Donut-like display */}
               <div className="flex items-center justify-center mb-6">
                 <div className="relative h-40 w-40">
                   <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
                     {(() => {
                       let offset = 0;
-                      return ordersBySource.map((source) => {
-                        const total = source.count + source.extraCount;
-                        const percent = (total / totalSourceOrders) * 100;
+                      return stats.ordersBySource.map((source) => {
+                        const percent = totalSourceOrders > 0 ? (source.count / totalSourceOrders) * 100 : 0;
                         const circumference = 2 * Math.PI * 40;
                         const dashLength = (percent / 100) * circumference;
                         const dashGap = circumference - dashLength;
@@ -293,14 +234,8 @@ export default function AdminEstadisticas() {
                             strokeDashoffset={`${-(currentOffset / 100) * circumference}`}
                             strokeLinecap="round"
                             initial={{ strokeDasharray: `0 ${circumference}` }}
-                            animate={{
-                              strokeDasharray: `${dashLength} ${dashGap}`,
-                            }}
-                            transition={{
-                              duration: 0.8,
-                              delay: 0.2,
-                              ease: 'easeOut',
-                            }}
+                            animate={{ strokeDasharray: `${dashLength} ${dashGap}` }}
+                            transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
                           />
                         );
                       });
@@ -315,26 +250,15 @@ export default function AdminEstadisticas() {
                 </div>
               </div>
 
-              {/* Legend */}
               <div className="space-y-3">
-                {ordersBySource.map((source) => {
-                  const total = source.count + source.extraCount;
-                  const percent = Math.round((total / totalSourceOrders) * 100);
+                {stats.ordersBySource.map((source) => {
+                  const percent = totalSourceOrders > 0 ? Math.round((source.count / totalSourceOrders) * 100) : 0;
                   return (
                     <div key={source.source} className="flex items-center gap-3">
-                      <div
-                        className="h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: source.color }}
-                      />
-                      <span className="text-sm font-medium text-[var(--text-primary)] flex-1">
-                        {source.label}
-                      </span>
-                      <span className="text-sm tabular-nums text-[var(--text-secondary)]">
-                        {total} pedidos
-                      </span>
-                      <span className="text-sm font-bold tabular-nums text-[var(--text-primary)] w-12 text-right">
-                        {percent}%
-                      </span>
+                      <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
+                      <span className="text-sm font-medium text-[var(--text-primary)] flex-1">{source.label}</span>
+                      <span className="text-sm tabular-nums text-[var(--text-secondary)]">{source.count} pedidos</span>
+                      <span className="text-sm font-bold tabular-nums text-[var(--text-primary)] w-12 text-right">{percent}%</span>
                     </div>
                   );
                 })}
@@ -350,15 +274,13 @@ export default function AdminEstadisticas() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Award className="h-5 w-5 text-[#FF6B35]" />
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                Top productos
-              </h2>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Top productos</h2>
             </div>
             <p className="text-xs text-[var(--text-muted)]">Productos más vendidos</p>
           </CardHeader>
           <CardContent>
             <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {mockDashboardStats.popularProducts.map((product, i) => {
+              {stats.popularProducts.map((product, i) => {
                 const medals = ['bg-[#F5CB5C]', 'bg-gray-300 dark:bg-gray-600', 'bg-amber-700'];
                 return (
                   <motion.div
@@ -379,12 +301,8 @@ export default function AdminEstadisticas() {
                       {i + 1}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        {Math.round(product.count * revenueMultiplier[timeFilter])} vendidos
-                      </p>
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">{product.name}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{product.count} vendidos</p>
                     </div>
                   </motion.div>
                 );

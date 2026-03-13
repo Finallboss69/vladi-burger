@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 import { Button, Badge } from '@/components/ui';
 import { formatPrice, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { mockOrders } from '@/lib/mock-data';
-import type { OrderStatus } from '@/types';
+import api from '@/lib/api';
+import type { Order, OrderStatus } from '@/types';
 
 const ORDER_STEPS: Array<{
   status: OrderStatus;
@@ -94,39 +94,56 @@ export default function PedidoPage() {
   const params = useParams();
   const orderId = params.id as string;
 
-  // Use first mock order as data
-  const order = mockOrders[0];
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState<OrderStatus>('PENDING' as OrderStatus);
 
-  // Simulate status progression
-  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/orders/${orderId}`)
+      .then((res) => {
+        const data = res.data.data;
+        setOrder(data);
+        if (data) setCurrentStatus(data.status);
+      })
+      .catch(() => setOrder(null))
+      .finally(() => setLoading(false));
+  }, [orderId]);
+
+  // Poll for status updates
+  useEffect(() => {
+    if (!order) return;
+    const timer = setInterval(() => {
+      api.get(`/orders/${orderId}`)
+        .then((res) => {
+          const data = res.data.data;
+          if (data) setCurrentStatus(data.status);
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [order, orderId]);
+
   const currentStepIdx = getStepIndex(currentStatus);
 
-  // Simulate live status updates
-  useEffect(() => {
-    const statusOrder: OrderStatus[] = [
-      'PENDING' as OrderStatus,
-      'CONFIRMED' as OrderStatus,
-      'PREPARING' as OrderStatus,
-      'READY' as OrderStatus,
-      'DELIVERING' as OrderStatus,
-      'DELIVERED' as OrderStatus,
-    ];
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-[var(--text-muted)]">Cargando pedido...</p>
+      </div>
+    );
+  }
 
-    let idx = statusOrder.indexOf(currentStatus);
-    if (idx < 0 || idx >= statusOrder.length - 1) return;
-
-    const timer = setInterval(() => {
-      idx += 1;
-      if (idx < statusOrder.length) {
-        setCurrentStatus(statusOrder[idx]);
-      }
-      if (idx >= statusOrder.length - 1) {
-        clearInterval(timer);
-      }
-    }, 8000);
-
-    return () => clearInterval(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!order) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+        <p className="text-xl font-bold text-[var(--text-primary)]">Pedido no encontrado</p>
+        <Link href="/cuenta/pedidos">
+          <Button variant="secondary">Ver mis pedidos</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

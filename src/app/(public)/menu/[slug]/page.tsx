@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,30 +10,38 @@ import { Button, Badge, Card, CardContent } from '@/components/ui';
 import { ProductCard } from '@/components/products/ProductCard';
 import { formatPrice, generateId } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
-import { mockProducts } from '@/lib/mock-data';
-import type { ProductExtra } from '@/types';
+import api from '@/lib/api';
+import type { Product, ProductExtra } from '@/types';
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>();
   const addItem = useCartStore((s) => s.addItem);
 
-  const product = mockProducts.find((p) => p.slug === params.slug);
-
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState(false);
 
-  const relatedProducts = useMemo(() => {
-    if (!product) return [];
-    return mockProducts
-      .filter(
-        (p) =>
-          p.categoryId === product.categoryId &&
-          p.id !== product.id &&
-          p.isActive,
-      )
-      .slice(0, 4);
-  }, [product]);
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/products?slug=${params.slug}`)
+      .then((res) => {
+        const found = Array.isArray(res.data.data) ? res.data.data[0] : res.data.data;
+        setProduct(found ?? null);
+        if (found) {
+          api.get(`/products?categoryId=${found.categoryId}&limit=4`)
+            .then((rel) => {
+              const items = (rel.data.data ?? []).filter((p: Product) => p.id !== found.id);
+              setRelatedProducts(items.slice(0, 4));
+            })
+            .catch(() => setRelatedProducts([]));
+        }
+      })
+      .catch(() => setProduct(null))
+      .finally(() => setLoading(false));
+  }, [params.slug]);
 
   const isLowStock = product ? product.stock > 0 && product.stock < 5 : false;
   const isOutOfStock = product ? product.stock === 0 : true;
@@ -72,6 +80,14 @@ export default function ProductDetailPage() {
 
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-[var(--text-muted)]">Cargando...</p>
+      </div>
+    );
   }
 
   if (!product) {

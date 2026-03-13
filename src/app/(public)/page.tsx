@@ -6,18 +6,14 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
   ArrowRight, Flame, Star, Users, Timer,
-  ShoppingCart, Minus, Plus, Check, X,
+  ShoppingCart, Minus, Plus, Check, X, Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { mockProducts } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { formatPrice, generateId, cn } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
 import type { Product, ProductExtra } from '@/types';
-
-/* ---- Data ---- */
-
-const allBurgers = mockProducts.filter((p) => p.categoryId === '1' && p.isActive);
 
 const stats = [
   { icon: Flame, value: '50K+', label: 'Burgers vendidas', color: '#FF6B35' },
@@ -122,9 +118,18 @@ function BurgerModal({
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-3 left-4 right-4">
-            <h3 className="text-xl font-extrabold text-white drop-shadow-lg sm:text-2xl">
-              {product.name}
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-xl font-extrabold text-white drop-shadow-lg sm:text-2xl">
+                {product.name}
+              </h3>
+              {product.stock === 0 ? (
+                <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">Agotado</span>
+              ) : product.stock > 0 && product.stock < 5 ? (
+                <span className="rounded-md bg-[#D62828] px-2 py-0.5 text-[10px] font-bold text-white animate-pulse">Quedan {product.stock}!</span>
+              ) : product.stock > 0 ? (
+                <span className="rounded-md bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold text-white">Stock: {product.stock}</span>
+              ) : null}
+            </div>
             <p className="mt-0.5 text-sm text-white/70 line-clamp-2">{product.description}</p>
           </div>
         </div>
@@ -218,9 +223,16 @@ function BurgerModal({
 /* ---- Main Page ---- */
 
 export default function HomePage() {
+  const [allBurgers, setAllBurgers] = useState<Product[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  useEffect(() => {
+    api.get('/products?categoryId=1').then((res) => {
+      setAllBurgers(res.data.data.filter((p: Product) => p.isActive));
+    }).catch(() => {});
+  }, []);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -228,9 +240,6 @@ export default function HomePage() {
     offset: ['start start', 'end start'],
   });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 60]);
-
-  const activeBurger = allBurgers[activeIndex];
-  const isLowStock = activeBurger.stock > 0 && activeBurger.stock < 5;
 
   // Auto-cycle
   useEffect(() => {
@@ -243,7 +252,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* ====== Hero: Accordion + Banner ====== */}
+      {/* ====== Hero: Vertical Card Accordion + Banner ====== */}
       <section
         ref={heroRef}
         className="relative overflow-hidden"
@@ -257,172 +266,187 @@ export default function HomePage() {
           style={{ y: heroY }}
           className="relative mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:py-14"
         >
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
-            {/* Left: Accordion strips */}
-            <div className="flex lg:flex-col gap-1.5 sm:gap-2 h-[100px] sm:h-[120px] lg:h-[460px] lg:w-[90px] order-2 lg:order-1">
-              {allBurgers.map((burger, i) => {
-                const isActive = i === activeIndex;
-                return (
-                  <motion.button
-                    key={burger.id}
-                    onClick={() => setActiveIndex(i)}
-                    className={cn(
-                      'relative cursor-pointer overflow-hidden transition-all duration-500',
-                      // Mobile: horizontal strips
-                      'flex-1 lg:flex-none rounded-lg lg:rounded-xl',
-                      isActive
-                        ? 'ring-2 ring-[#FF6B35] ring-offset-1 ring-offset-[#0a0604]'
-                        : 'opacity-60 hover:opacity-90',
-                    )}
-                    animate={{
-                      flex: isActive ? 2.5 : 1,
-                    }}
-                    transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                    style={{
-                      // For lg: fixed heights instead of flex
-                    }}
-                    aria-label={burger.name}
-                  >
-                    {burger.imageUrl ? (
-                      <Image
-                        src={burger.imageUrl}
-                        alt={burger.name}
-                        fill
-                        sizes="90px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-[#2a1508] flex items-center justify-center text-2xl">🍔</div>
-                    )}
-                    <div className={cn(
-                      'absolute inset-0 transition-all duration-300',
-                      isActive
-                        ? 'bg-black/10'
-                        : 'bg-black/50 hover:bg-black/35',
-                    )} />
+          {/* Vertical cards row — tall narrow strips side by side */}
+          <div className="flex gap-1.5 sm:gap-2 h-[420px] sm:h-[460px] lg:h-[500px]">
+            {allBurgers.map((burger, i) => {
+              const isActive = i === activeIndex;
+              const burgerLowStock = burger.stock > 0 && burger.stock < 5;
 
-                    {/* Name on collapsed - mobile */}
-                    {!isActive && (
-                      <span className="absolute bottom-1 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white/80 truncate px-0.5 lg:hidden">
-                        {burger.name.split(' ')[1] || burger.name}
-                      </span>
-                    )}
-
-                    {/* Name on collapsed - desktop vertical */}
-                    <span
-                      className={cn(
-                        'absolute inset-0 hidden lg:flex items-center justify-center text-[10px] font-bold tracking-wider transition-opacity duration-300',
-                        isActive ? 'opacity-0' : 'text-white/80 opacity-100',
-                      )}
-                      style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                    >
-                      {burger.name}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Right: Active Burger Banner */}
-            <div className="relative flex-1 order-1 lg:order-2 rounded-2xl lg:rounded-3xl overflow-hidden h-[340px] sm:h-[400px] lg:h-[460px]">
-              <AnimatePresence mode="wait">
+              return (
                 <motion.div
-                  key={activeBurger.id}
-                  initial={{ opacity: 0, scale: 1.02 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0"
+                  key={burger.id}
+                  layout
+                  onClick={() => setActiveIndex(i)}
+                  className={cn(
+                    'relative cursor-pointer overflow-hidden rounded-2xl transition-shadow duration-500',
+                    isActive
+                      ? 'shadow-2xl shadow-[#FF6B35]/10'
+                      : 'shadow-md hover:shadow-lg',
+                  )}
+                  animate={{
+                    flex: isActive ? 5 : 0.5,
+                  }}
+                  transition={{
+                    flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                    layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                  }}
                 >
-                  {/* Background image */}
-                  {activeBurger.imageUrl ? (
+                  {/* Image */}
+                  {burger.imageUrl ? (
                     <Image
-                      src={activeBurger.imageUrl}
-                      alt={activeBurger.name}
+                      src={burger.imageUrl}
+                      alt={burger.name}
                       fill
-                      priority
-                      sizes="(max-width: 1024px) 100vw, 80vw"
+                      priority={i < 3}
+                      sizes={isActive ? '70vw' : '60px'}
                       className="object-cover"
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-[#1a0e08] flex items-center justify-center text-8xl">🍔</div>
+                    <div className="absolute inset-0 bg-[#2a1508] flex items-center justify-center text-5xl">🍔</div>
                   )}
 
-                  {/* Overlay gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-black/10 sm:from-black/75 sm:via-black/30" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  {/* Overlay */}
+                  <div
+                    className={cn(
+                      'absolute inset-0 transition-all duration-500',
+                      isActive
+                        ? 'bg-gradient-to-r from-black/75 via-black/30 to-black/10'
+                        : 'bg-gradient-to-t from-black/70 via-black/40 to-black/25',
+                    )}
+                  />
 
-                  {/* Banner Content */}
-                  <div className="absolute inset-0 flex flex-col justify-end sm:justify-center p-5 sm:p-8 lg:p-10">
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.4, delay: 0.15 }}
-                      className="max-w-md"
-                    >
-                      {/* Category label */}
-                      {activeBurger.category && (
-                        <span className="inline-block rounded-md bg-[#FF6B35]/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white mb-3">
-                          {activeBurger.category.name}
-                        </span>
-                      )}
-
-                      {isLowStock && (
-                        <span className="inline-block ml-2 rounded-md bg-[#D62828]/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white mb-3">
-                          Ultimas {activeBurger.stock}!
-                        </span>
-                      )}
-
-                      {/* Name */}
-                      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
-                        {activeBurger.name}
-                      </h1>
-
-                      {/* Description */}
-                      <p className="mt-2.5 text-sm sm:text-base text-white/65 leading-relaxed line-clamp-3">
-                        {activeBurger.description}
-                      </p>
-
-                      {/* Extras tags */}
-                      {activeBurger.extras.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {activeBurger.extras.map((extra) => (
-                            <span
-                              key={extra.id}
-                              className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/60 backdrop-blur-sm"
-                            >
-                              + {extra.name} {formatPrice(extra.price)}
-                            </span>
-                          ))}
+                  {/* Collapsed: vertical name + stock */}
+                  <AnimatePresence>
+                    {!isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0 flex flex-col items-center justify-between py-3"
+                      >
+                        {/* Stock dot indicator at top */}
+                        <div className="flex flex-col items-center gap-1">
+                          <div
+                            className={cn(
+                              'h-2 w-2 rounded-full',
+                              burger.stock === 0
+                                ? 'bg-red-500'
+                                : burger.stock > 0 && burger.stock < 5
+                                  ? 'bg-amber-400 animate-pulse'
+                                  : 'bg-emerald-400',
+                            )}
+                          />
+                          <span className="text-[8px] font-bold text-white/50">
+                            {burger.stock === -1 ? '∞' : burger.stock}
+                          </span>
                         </div>
-                      )}
 
-                      {/* Price + CTA */}
-                      <div className="mt-5 flex items-center gap-4">
-                        <span className="text-3xl sm:text-4xl font-extrabold text-[#FF6B35]">
-                          {formatPrice(activeBurger.price)}
-                        </span>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setSelectedBurger(activeBurger)}
-                          className="flex h-11 items-center gap-2 rounded-xl bg-[#FF6B35] px-6 text-sm font-bold text-white cursor-pointer transition-colors hover:bg-[#e55e2e] shadow-lg shadow-[#FF6B35]/25"
-                        >
-                          <ShoppingCart className="h-4 w-4" />
-                          Pedir ahora
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  </div>
+                        {/* Name + price at bottom */}
+                        <div className="flex flex-col items-center gap-2">
+                          <span
+                            className="text-[11px] sm:text-xs font-bold text-white/80 tracking-wider"
+                            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                          >
+                            {burger.name}
+                          </span>
+                          <span className="text-[10px] font-bold text-[#FF6B35]">
+                            {formatPrice(burger.price)}
+                          </span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Expanded: full banner */}
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                        className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 lg:p-8"
+                      >
+                        {/* Tags + Stock */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+                          {burger.category && (
+                            <span className="rounded-md bg-[#FF6B35]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                              {burger.category.name}
+                            </span>
+                          )}
+                          {/* Stock indicator */}
+                          {burger.stock === 0 ? (
+                            <span className="flex items-center gap-1 rounded-md bg-red-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                              <Package className="h-3 w-3" /> Agotado
+                            </span>
+                          ) : burger.stock > 0 && burger.stock < 5 ? (
+                            <span className="flex items-center gap-1 rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white animate-pulse">
+                              <Package className="h-3 w-3" /> Ultimas {burger.stock}!
+                            </span>
+                          ) : burger.stock > 0 ? (
+                            <span className="flex items-center gap-1 rounded-md bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                              <Package className="h-3 w-3" /> Stock: {burger.stock}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Name */}
+                        <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
+                          {burger.name}
+                        </h1>
+
+                        {/* Description */}
+                        <p className="mt-2 text-xs sm:text-sm lg:text-base text-white/60 leading-relaxed line-clamp-2 sm:line-clamp-3 max-w-lg">
+                          {burger.description}
+                        </p>
+
+                        {/* Extras */}
+                        {burger.extras.length > 0 && (
+                          <div className="mt-2.5 hidden sm:flex flex-wrap gap-1.5">
+                            {burger.extras.map((extra) => (
+                              <span
+                                key={extra.id}
+                                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/50 backdrop-blur-sm"
+                              >
+                                + {extra.name} {formatPrice(extra.price)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Price + CTA */}
+                        <div className="mt-4 flex items-center gap-3 sm:gap-4">
+                          <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#FF6B35]">
+                            {formatPrice(burger.price)}
+                          </span>
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBurger(burger);
+                            }}
+                            className="flex h-10 sm:h-11 items-center gap-2 rounded-xl bg-[#FF6B35] px-4 sm:px-6 text-xs sm:text-sm font-bold text-white cursor-pointer transition-colors hover:bg-[#e55e2e] shadow-lg shadow-[#FF6B35]/25"
+                          >
+                            <ShoppingCart className="h-4 w-4" />
+                            Pedir ahora
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Counter badge on active */}
+                  {isActive && (
+                    <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-0.5 backdrop-blur-sm">
+                      <span className="text-[10px] font-bold text-[#FF6B35]">{i + 1}</span>
+                      <span className="text-[9px] text-white/30">/</span>
+                      <span className="text-[10px] text-white/40">{allBurgers.length}</span>
+                    </div>
+                  )}
                 </motion.div>
-              </AnimatePresence>
-
-              {/* Burger counter */}
-              <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">
-                <span className="text-xs font-bold text-[#FF6B35]">{activeIndex + 1}</span>
-                <span className="text-[10px] text-white/40">/</span>
-                <span className="text-xs text-white/50">{allBurgers.length}</span>
-              </div>
-            </div>
+              );
+            })}
           </div>
 
           {/* Bottom bar: dots + CTAs */}

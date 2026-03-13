@@ -6,12 +6,13 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, X, ShoppingCart, User, Sun, Moon,
-  ChefHat, Flame, UtensilsCrossed, Home,
+  ChefHat, Flame, UtensilsCrossed, Home, Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useThemeStore } from '@/stores/theme-store';
+import { Role } from '@/types';
 
 const navLinks = [
   { href: '/menu', label: 'Menu' },
@@ -22,6 +23,11 @@ const mobileNavItems = [
   { href: '/', label: 'Inicio', icon: Home },
   { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
   { href: '/carrito', label: 'Carrito', icon: ShoppingCart },
+  { href: '/cuenta', label: 'Cuenta', icon: User },
+];
+
+const deliveryNavItems = [
+  { href: '/delivery', label: 'Entregas', icon: Truck },
   { href: '/cuenta', label: 'Cuenta', icon: User },
 ];
 
@@ -255,7 +261,7 @@ export function Header() {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/95 backdrop-blur-xl md:hidden safe-area-bottom">
         <div className="flex items-center justify-around px-2 py-1">
-          {mobileNavItems.map((item) => {
+          {(user?.role === Role.DELIVERY ? deliveryNavItems : mobileNavItems).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             const isCart = item.href === '/carrito';

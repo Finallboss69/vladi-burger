@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, ChefHat } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 function Clock() {
   const [time, setTime] = useState('');
@@ -34,6 +36,19 @@ export default function KitchenLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || (user.role !== 'KITCHEN' && user.role !== 'ADMIN')) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, user, router]);
+
+  if (!isAuthenticated || !user || (user.role !== 'KITCHEN' && user.role !== 'ADMIN')) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-[#F5F5F5]">
       {/* Top Bar */}

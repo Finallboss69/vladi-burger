@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -14,7 +14,7 @@ import { Button, Card, Input } from '@/components/ui';
 import { useBuilderStore } from '@/stores/builder-store';
 import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
-import { mockIngredients } from '@/lib/mock-data';
+import api from '@/lib/api';
 import { cn, formatPrice, generateId } from '@/lib/utils';
 import type { Ingredient, IngredientType } from '@/types';
 
@@ -211,6 +211,13 @@ export default function ArmaTuBurgerPage() {
 
   const [direction, setDirection] = useState(0);
   const [burgerName, setBurgerName] = useState('');
+  const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
+
+  useEffect(() => {
+    api.get('/ingredients')
+      .then((res) => setAllIngredients(res.data.data ?? []))
+      .catch(() => setAllIngredients([]));
+  }, []);
 
   const isLastStep = currentStep === STEPS.length - 1;
 
@@ -220,8 +227,8 @@ export default function ArmaTuBurgerPage() {
     () =>
       isLastStep
         ? []
-        : mockIngredients.filter((i) => i.type === currentStepConfig.type && i.isActive),
-    [currentStep, isLastStep, currentStepConfig.type],
+        : allIngredients.filter((i) => i.type === currentStepConfig.type && i.isActive),
+    [currentStep, isLastStep, currentStepConfig.type, allIngredients],
   );
 
   const selectedIdsForStep = useMemo(() => {

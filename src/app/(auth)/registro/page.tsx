@@ -30,7 +30,7 @@ interface FormErrors {
 
 export default function RegistroPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
+  const register = useAuthStore((s) => s.register);
   const addNotification = useNotificationStore((s) => s.addNotification);
 
   const [name, setName] = useState('');
@@ -82,15 +82,28 @@ export default function RegistroPage() {
     if (!validate()) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    login(email, password);
-    addNotification({
-      type: 'success',
-      title: 'Cuenta creada!',
-      message: 'Bienvenido a Vladi.burger',
-    });
+    const success = await register(name, email, password, phone || undefined);
     setLoading(false);
-    router.push('/');
+
+    if (success) {
+      addNotification({
+        type: 'success',
+        title: 'Cuenta creada!',
+        message: 'Bienvenido a Vladi.burger',
+      });
+      router.push('/');
+    } else {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo crear la cuenta. El email ya puede estar en uso.',
+      });
+    }
+  }
+
+  function handleGoogleRegister() {
+    setGoogleLoading(true);
+    window.location.href = '/api/auth/google';
   }
 
   return (
@@ -112,18 +125,7 @@ export default function RegistroPage() {
         {/* Google Register */}
         <button
           type="button"
-          onClick={async () => {
-            setGoogleLoading(true);
-            await new Promise((r) => setTimeout(r, 1200));
-            login('google@gmail.com', 'google-oauth');
-            addNotification({
-              type: 'success',
-              title: 'Cuenta creada!',
-              message: 'Bienvenido a Vladi.burger',
-            });
-            setGoogleLoading(false);
-            router.push('/');
-          }}
+          onClick={handleGoogleRegister}
           disabled={googleLoading}
           className="flex w-full h-11 items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-sm font-semibold text-[var(--text-primary)] transition-all hover:bg-[var(--bg-tertiary)] hover:border-[var(--text-muted)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
