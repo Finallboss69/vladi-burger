@@ -47,13 +47,21 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, hydrated, logout } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+    if (hydrated && (!isAuthenticated || !user || user.role !== 'ADMIN')) {
       router.replace('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [hydrated, isAuthenticated, user, router]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#FF6B35] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !user || user.role !== 'ADMIN') {
     return null;

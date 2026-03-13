@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   CheckCircle2,
@@ -16,9 +16,13 @@ import {
   UtensilsCrossed,
   ArrowLeft,
   Phone,
+  MessageSquare,
+  Send,
+  X,
 } from 'lucide-react';
-import { Button, Badge } from '@/components/ui';
+import { Button, Badge, StarRating } from '@/components/ui';
 import { formatPrice, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
+import { useNotificationStore } from '@/stores/notification-store';
 import api from '@/lib/api';
 import type { Order, OrderStatus } from '@/types';
 
@@ -90,6 +94,112 @@ function getEstimatedTime(status: OrderStatus): string {
   }
 }
 
+/* ---- Review Modal ---- */
+function ReviewModal({
+  orderId,
+  onClose,
+  onSubmitted,
+}: {
+  orderId: string;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  async function handleSubmit() {
+    if (rating === 0) return;
+    setSubmitting(true);
+    try {
+      await api.post('/reviews', { orderId, rating, comment });
+      addNotification({
+        type: 'success',
+        title: 'Gracias!',
+        message: 'Tu resena fue enviada',
+      });
+      onSubmitted();
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo enviar la resena',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] p-6 shadow-2xl"
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] cursor-pointer"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="text-center mb-5">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF6B35]/10">
+            <MessageSquare className="h-7 w-7 text-[#FF6B35]" />
+          </div>
+          <h3 className="text-xl font-bold text-[var(--text-primary)]">
+            Como estuvo tu pedido?
+          </h3>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Tu opinion nos ayuda a mejorar
+          </p>
+        </div>
+
+        <div className="flex justify-center mb-5">
+          <StarRating value={rating} onChange={setRating} size={36} />
+        </div>
+
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Conta tu experiencia... (opcional)"
+          rows={3}
+          className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[#FF6B35] transition-colors"
+        />
+
+        <div className="mt-4 flex gap-3">
+          <Button
+            variant="secondary"
+            className="flex-1"
+            onClick={onClose}
+          >
+            Ahora no
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={handleSubmit}
+            loading={submitting}
+            disabled={rating === 0 || submitting}
+            icon={<Send className="h-4 w-4" />}
+          >
+            Enviar
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function PedidoPage() {
   const params = useParams();
   const orderId = params.id as string;
@@ -97,6 +207,8 @@ export default function PedidoPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>('PENDING' as OrderStatus);
+  const [showReview, setShowReview] = useState(false);
+  const [hasReview, setHasReview] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -104,7 +216,13 @@ export default function PedidoPage() {
       .then((res) => {
         const data = res.data.data;
         setOrder(data);
-        if (data) setCurrentStatus(data.status);
+        if (data) {
+          setCurrentStatus(data.status);
+          setHasReview(!!data.review);
+          if (data.status === 'DELIVERED' && !data.review) {
+            setShowReview(true);
+          }
+        }
       })
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
@@ -117,12 +235,19 @@ export default function PedidoPage() {
       api.get(`/orders/${orderId}`)
         .then((res) => {
           const data = res.data.data;
-          if (data) setCurrentStatus(data.status);
+          if (data) {
+            const prevStatus = currentStatus;
+            setCurrentStatus(data.status);
+            // Show review modal when status changes to DELIVERED
+            if (data.status === 'DELIVERED' && prevStatus !== 'DELIVERED' && !hasReview) {
+              setShowReview(true);
+            }
+          }
         })
         .catch(() => {});
     }, 10000);
     return () => clearInterval(timer);
-  }, [order, orderId]);
+  }, [order, orderId, currentStatus, hasReview]);
 
   const currentStepIdx = getStepIndex(currentStatus);
 
@@ -503,6 +628,37 @@ export default function PedidoPage() {
           </Link>
         </motion.div>
       </div>
+
+      {/* Review button for delivered orders without review */}
+      {currentStatus === ('DELIVERED' as OrderStatus) && !hasReview && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6"
+        >
+          <Button
+            className="w-full"
+            onClick={() => setShowReview(true)}
+            icon={<MessageSquare className="h-4 w-4" />}
+          >
+            Dejar una resena
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Review Modal */}
+      <AnimatePresence>
+        {showReview && (
+          <ReviewModal
+            orderId={orderId}
+            onClose={() => setShowReview(false)}
+            onSubmitted={() => {
+              setShowReview(false);
+              setHasReview(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Mobile bottom nav spacer */}
       <div className="h-16 md:hidden" />

@@ -53,6 +53,7 @@ function LoginForm() {
     }
 
     if (token) {
+      const redirect = searchParams.get('redirect') ?? '/';
       // Set token in store, then fetch user data
       useAuthStore.setState({ token, isAuthenticated: true });
       fetchMe().then(() => {
@@ -63,7 +64,7 @@ function LoginForm() {
             ? `Iniciaste sesion como ${name}`
             : 'Iniciaste sesion con Google',
         });
-        router.replace('/');
+        router.replace(redirect);
       });
     }
   }, [searchParams, addNotification, fetchMe, router]);
@@ -89,16 +90,21 @@ function LoginForm() {
     if (!validate()) return;
 
     setLoading(true);
-    const success = await login(email, password);
+    const role = await login(email, password);
     setLoading(false);
 
-    if (success) {
+    if (role) {
+      const roleRedirects: Record<string, string> = {
+        ADMIN: '/admin',
+        KITCHEN: '/cocina',
+        DELIVERY: '/delivery',
+      };
       addNotification({
         type: 'success',
         title: 'Bienvenido!',
         message: 'Iniciaste sesion correctamente',
       });
-      router.push('/');
+      router.push(roleRedirects[role] ?? '/');
     } else {
       addNotification({
         type: 'error',

@@ -37,13 +37,21 @@ export default function KitchenLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, hydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || !user || (user.role !== 'KITCHEN' && user.role !== 'ADMIN')) {
+    if (hydrated && (!isAuthenticated || !user || (user.role !== 'KITCHEN' && user.role !== 'ADMIN'))) {
       router.replace('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [hydrated, isAuthenticated, user, router]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#1A1A1A]">
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#FF6B35] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !user || (user.role !== 'KITCHEN' && user.role !== 'ADMIN')) {
     return null;

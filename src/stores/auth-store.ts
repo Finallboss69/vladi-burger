@@ -7,7 +7,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  hydrated: boolean;
+  login: (email: string, password: string) => Promise<string | null>;
   register: (name: string, email: string, password: string, phone?: string) => Promise<boolean>;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -22,15 +23,16 @@ export const useAuthStore = create<AuthState>()(
         user: null,
         token: null,
         isAuthenticated: false,
+        hydrated: false,
 
         login: async (email: string, password: string) => {
           try {
             const res = await api.post('/auth/login', { email, password });
             const { user, token } = res.data.data;
             set({ user, token, isAuthenticated: true }, false, 'login');
-            return true;
+            return user.role as string;
           } catch {
-            return false;
+            return null;
           }
         },
 
@@ -68,18 +70,29 @@ export const useAuthStore = create<AuthState>()(
 
         fetchMe: async () => {
           const { token } = get();
-          if (!token) return;
+          if (!token) {
+            set({ hydrated: true }, false, 'hydrate-no-token');
+            return;
+          }
           try {
             const res = await api.get('/auth/me');
-            set({ user: res.data.data, isAuthenticated: true }, false, 'fetchMe');
+            set({ user: res.data.data, isAuthenticated: true, hydrated: true }, false, 'fetchMe');
           } catch {
-            set({ user: null, token: null, isAuthenticated: false }, false, 'fetchMe-fail');
+            set({ user: null, token: null, isAuthenticated: false, hydrated: true }, false, 'fetchMe-fail');
           }
         },
       }),
       {
         name: 'vladi-token',
         partialize: (state) => ({ token: state.token }),
+        onRehydrateStorage: () => (state) => {
+          // Auto-fetch user data after token is rehydrated from localStorage
+          if (state?.token) {
+            state.fetchMe();
+          } else {
+            useAuthStore.setState({ hydrated: true });
+          }
+        },
       },
     ),
     { name: 'AuthStore' },

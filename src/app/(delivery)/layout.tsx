@@ -59,22 +59,20 @@ export default function DeliveryLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
-  const [checked, setChecked] = useState(false);
+  const { user, isAuthenticated, hydrated } = useAuthStore();
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated || !user) {
       router.replace('/login');
       return;
     }
     if (user.role !== Role.DELIVERY && user.role !== Role.ADMIN) {
       router.replace('/login');
-      return;
     }
-    setChecked(true);
-  }, [isAuthenticated, user, router]);
+  }, [hydrated, isAuthenticated, user, router]);
 
-  if (!checked) {
+  if (!hydrated || !isAuthenticated || !user || (user.role !== Role.DELIVERY && user.role !== Role.ADMIN)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#1A1A1A]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FF6B35] border-t-transparent" />

@@ -15,18 +15,20 @@ import { useCartStore } from '@/stores/cart-store';
 import { useNotificationStore } from '@/stores/notification-store';
 import type { Product, ProductExtra } from '@/types';
 
-const stats = [
+const defaultStats = [
   { icon: Flame, value: '50K+', label: 'Burgers vendidas', color: '#FF6B35' },
-  { icon: Star, value: '4.8', label: 'Rating promedio', color: '#F5CB5C' },
+  { icon: Star, value: '4.8', label: 'Rating promedio', color: '#F5CB5C', key: 'rating' as const },
   { icon: Users, value: '12K+', label: 'Clientes felices', color: '#2D6A4F' },
   { icon: Timer, value: '30\'', label: 'Delivery promedio', color: '#D62828' },
 ];
 
-const testimonials = [
-  { name: 'Marcos G.', text: 'La Vladi Clasica es la mejor hamburguesa que comi en mi vida. La salsa secreta es adictiva.', rating: 5, avatar: 'M' },
-  { name: 'Lucia R.', text: 'La opcion veggie es increible, no pense que una hamburguesa vegana pudiera ser tan rica.', rating: 5, avatar: 'L' },
-  { name: 'Diego F.', text: 'Armar tu propia burger es genial. Ya hice como 10 combinaciones distintas!', rating: 4, avatar: 'D' },
-];
+interface ReviewData {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  user: { name: string; avatarUrl: string | null };
+}
 
 /* ---- Product Quick-View Modal ---- */
 
@@ -224,13 +226,29 @@ function BurgerModal({
 
 export default function HomePage() {
   const [allBurgers, setAllBurgers] = useState<Product[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [selectedBurger, setSelectedBurger] = useState<Product | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [reviews, setReviews] = useState<ReviewData[]>([]);
+  const [avgRating, setAvgRating] = useState('4.8');
+  const [totalReviews, setTotalReviews] = useState(0);
 
   useEffect(() => {
     api.get('/products?categoryId=1').then((res) => {
-      setAllBurgers(res.data.data.filter((p: Product) => p.isActive));
+      const burgers = res.data.data.filter((p: Product) => p.isActive);
+      setAllBurgers(burgers);
+      if (burgers.length > 0) {
+        setActiveIndex(burgers.length - 1);
+      }
+    }).catch(() => {});
+
+    api.get('/reviews?limit=6').then((res) => {
+      const data = res.data.data;
+      setReviews(data.reviews);
+      if (data.totalReviews > 0) {
+        setAvgRating(String(data.avgRating));
+      }
+      setTotalReviews(data.totalReviews);
     }).catch(() => {});
   }, []);
 
@@ -243,12 +261,13 @@ export default function HomePage() {
 
   // Auto-cycle
   useEffect(() => {
-    if (!isAutoPlaying || selectedBurger) return;
+    if (!isAutoPlaying || selectedBurger || allBurgers.length === 0) return;
+    const len = allBurgers.length;
     const timer = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % allBurgers.length);
+      setActiveIndex((prev) => (prev + 1) % len);
     }, 4000);
     return () => clearInterval(timer);
-  }, [isAutoPlaying, selectedBurger]);
+  }, [isAutoPlaying, selectedBurger, allBurgers.length]);
 
   return (
     <div className="flex flex-col">
@@ -268,14 +287,13 @@ export default function HomePage() {
         >
           {/* Vertical cards row — tall narrow strips side by side */}
           <div className="flex gap-1.5 sm:gap-2 h-[420px] sm:h-[460px] lg:h-[500px]">
-            {allBurgers.map((burger, i) => {
+            {activeIndex >= 0 && allBurgers.map((burger, i) => {
               const isActive = i === activeIndex;
               const burgerLowStock = burger.stock > 0 && burger.stock < 5;
 
               return (
                 <motion.div
                   key={burger.id}
-                  layout
                   onClick={() => setActiveIndex(i)}
                   className={cn(
                     'relative cursor-pointer overflow-hidden rounded-2xl transition-shadow duration-500',
@@ -288,7 +306,6 @@ export default function HomePage() {
                   }}
                   transition={{
                     flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-                    layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
                   }}
                 >
                   {/* Image */}
@@ -490,7 +507,7 @@ export default function HomePage() {
       <section className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid grid-cols-4 divide-x divide-[var(--border-color)]">
-            {stats.map((stat, i) => (
+            {defaultStats.map((stat, i) => (
               <motion.div
                 key={stat.label}
                 className="flex flex-col items-center gap-1 py-5 sm:py-6 sm:flex-row sm:gap-3 sm:justify-center"
@@ -502,7 +519,7 @@ export default function HomePage() {
                 <stat.icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: stat.color }} />
                 <div className="text-center sm:text-left">
                   <span className="block text-lg sm:text-xl font-extrabold text-[var(--text-primary)]">
-                    {stat.value}
+                    {stat.key === 'rating' && totalReviews > 0 ? avgRating : stat.value}
                   </span>
                   <span className="block text-[10px] sm:text-xs text-[var(--text-muted)]">
                     {stat.label}
@@ -514,59 +531,78 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ====== Testimonials ====== */}
-      <section className="bg-[var(--bg-primary)] py-14 sm:py-18">
-        <div className="mx-auto max-w-7xl px-4">
-          <motion.div
-            className="mb-8 sm:mb-10"
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-2xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
-              Lo que dicen nuestros clientes
-            </h2>
-          </motion.div>
-
-          <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
-            {testimonials.map((t, i) => (
-              <motion.div
-                key={t.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex flex-col gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 sm:p-6"
-              >
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, si) => (
-                    <Star
-                      key={si}
-                      className={cn(
-                        'h-3.5 w-3.5',
-                        si < t.rating
-                          ? 'fill-[#F5CB5C] text-[#F5CB5C]'
-                          : 'text-[var(--border-color)]',
-                      )}
-                    />
-                  ))}
-                </div>
-                <p className="flex-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  &ldquo;{t.text}&rdquo;
+      {/* ====== Reviews from real customers ====== */}
+      {reviews.length > 0 && (
+        <section className="bg-[var(--bg-primary)] py-14 sm:py-18">
+          <div className="mx-auto max-w-7xl px-4">
+            <motion.div
+              className="mb-8 sm:mb-10 flex items-end justify-between"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div>
+                <h2 className="text-2xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
+                  Lo que dicen nuestros clientes
+                </h2>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  {totalReviews} resena{totalReviews !== 1 ? 's' : ''} reales de nuestros clientes
                 </p>
-                <div className="flex items-center gap-2.5 pt-1 border-t border-[var(--border-color)]">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B35] to-[#D62828] text-xs font-bold text-white">
-                    {t.avatar}
+              </div>
+            </motion.div>
+
+            <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
+              {reviews.map((r, i) => (
+                <motion.div
+                  key={r.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="flex flex-col gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 sm:p-6"
+                >
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, si) => (
+                      <Star
+                        key={si}
+                        className={cn(
+                          'h-3.5 w-3.5',
+                          si < r.rating
+                            ? 'fill-[#F5CB5C] text-[#F5CB5C]'
+                            : 'text-[var(--border-color)]',
+                        )}
+                      />
+                    ))}
                   </div>
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {t.name}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+                  {r.comment && (
+                    <p className="flex-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                      &ldquo;{r.comment}&rdquo;
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2.5 pt-1 border-t border-[var(--border-color)]">
+                    {r.user.avatarUrl ? (
+                      <Image
+                        src={r.user.avatarUrl}
+                        alt={r.user.name}
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B35] to-[#D62828] text-xs font-bold text-white">
+                        {r.user.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">
+                      {r.user.name}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <div className="h-16 md:hidden" />
 

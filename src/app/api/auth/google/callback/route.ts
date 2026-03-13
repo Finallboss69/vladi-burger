@@ -120,10 +120,18 @@ export async function GET(request: NextRequest) {
     // Generate JWT
     const token = signToken(user.id)
 
-    // Redirect to login page with token and name
+    // Redirect based on role
+    const roleRedirects: Record<string, string> = {
+      ADMIN: '/admin',
+      KITCHEN: '/cocina',
+      DELIVERY: '/delivery',
+    }
+    const destination = roleRedirects[user.role] ?? '/'
+
     const redirectUrl = new URL('/login', appUrl)
     redirectUrl.searchParams.set('token', token)
     redirectUrl.searchParams.set('name', user.name)
+    redirectUrl.searchParams.set('redirect', destination)
 
     return NextResponse.redirect(redirectUrl.toString())
   } catch (err) {
