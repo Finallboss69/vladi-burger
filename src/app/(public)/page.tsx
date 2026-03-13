@@ -340,8 +340,9 @@ export default function HomePage() {
                       src={burger.imageUrl}
                       alt={burger.name}
                       fill
-                      priority={i < 3}
-                      sizes={isActive ? '70vw' : '60px'}
+                      priority
+                      sizes="(max-width: 768px) 100vw, 70vw"
+                      quality={90}
                       className="object-cover"
                     />
                   ) : (
