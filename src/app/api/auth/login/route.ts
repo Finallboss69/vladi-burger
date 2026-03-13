@@ -24,7 +24,9 @@ export async function POST(req: Request) {
 
     const { passwordHash: _, ...safeUser } = user
     return NextResponse.json({ data: { user: safeUser, token } })
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  } catch (err) {
+    console.error('Login error:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: 'Error interno', detail: message }, { status: 500 })
   }
 }
