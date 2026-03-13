@@ -7,26 +7,16 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Seeding database...')
 
-  // Clean
-  await prisma.stampCard.deleteMany()
-  await prisma.stampConfig.deleteMany()
-  await prisma.photoLike.deleteMany()
-  await prisma.customerPhoto.deleteMany()
-  await prisma.burgerCreation.deleteMany()
-  await prisma.orderReview.deleteMany()
-  await prisma.orderItem.deleteMany()
-  await prisma.order.deleteMany()
-  await prisma.address.deleteMany()
-  await prisma.comboItem.deleteMany()
-  await prisma.productExtra.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.category.deleteMany()
-  await prisma.ingredient.deleteMany()
-  await prisma.coupon.deleteMany()
-  await prisma.loyaltyReward.deleteMany()
-  await prisma.deliverySchedule.deleteMany()
-  await prisma.blogPost.deleteMany()
-  await prisma.user.deleteMany()
+  // Clean all tables (truncate cascade handles FK ordering)
+  const tableNames = [
+    'StampCard', 'StampConfig', 'PhotoLike', 'CustomerPhoto', 'BurgerCreation',
+    'OrderReview', 'OrderItem', 'Order', 'Address', 'ComboItem', 'ProductExtra',
+    'Product', 'Category', 'Ingredient', 'Coupon', 'LoyaltyReward',
+    'DeliverySchedule', 'BlogPost', 'User',
+  ]
+  for (const table of tableNames) {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`)
+  }
 
   // ─── Users ───
   const passwordHash = await bcrypt.hash('123456', 12)
@@ -115,6 +105,7 @@ async function main() {
     { id: '4', name: 'Vladi Veggie', slug: 'vladi-veggie', description: 'Medallón de lentejas y quinoa, queso vegano, rúcula, tomate y palta.', price: 4800, imageUrl: 'https://images.unsplash.com/photo-1520072959219-c595e6cdc07c?w=800', categoryId: '1', stock: 15, extras: [{ name: 'Extra palta', price: 500 }] },
     { id: '5', name: 'Vladi Picante', slug: 'vladi-picante', description: 'Con jalapeños, salsa sriracha, pepper jack y cebolla morada.', price: 5500, imageUrl: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=800', categoryId: '1', stock: 2, extras: [{ name: 'Extra jalapeños', price: 400 }] },
     { id: '6', name: 'Vladi Blue', slug: 'vladi-blue', description: 'Queso azul, champiñones salteados, rúcula y cebolla caramelizada.', price: 5800, imageUrl: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=800', categoryId: '1', stock: 20, extras: [{ name: 'Extra queso azul', price: 600 }] },
+    { id: '15', name: 'Vladi Criolla', slug: 'vladi-criolla', description: 'Chimichurri casero, provoleta derretida, cebolla morada y tomate en rodajas. Sabor bien argento.', price: 5400, imageUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800', categoryId: '1', stock: 18, extras: [{ name: 'Extra chimichurri', price: 300 }, { name: 'Provoleta doble', price: 700 }] },
     { id: '7', name: 'Papas Fritas', slug: 'papas-fritas', description: 'Papas fritas crocantes con sal marina.', price: 1800, imageUrl: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800', categoryId: '2', stock: -1, extras: [] },
     { id: '8', name: 'Aros de Cebolla', slug: 'aros-de-cebolla', description: 'Aros de cebolla empanados y dorados.', price: 2200, imageUrl: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=800', categoryId: '2', stock: -1, extras: [] },
     { id: '9', name: 'Nuggets x6', slug: 'nuggets', description: '6 nuggets de pollo con salsa a elección.', price: 2500, imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=800', categoryId: '2', stock: 10, extras: [{ name: 'Salsa BBQ', price: 200 }, { name: 'Salsa Ranch', price: 200 }] },
