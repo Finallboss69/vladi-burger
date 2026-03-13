@@ -27,7 +27,8 @@ export async function GET(req: Request) {
 
   const data = drivers.map(({ deliveryOrders, ...driver }) => ({
     ...driver,
-    activeOrderCount: deliveryOrders.length,
+    activeOrders: deliveryOrders.length,
+    isActive: true,
   }))
 
   return NextResponse.json({ data })

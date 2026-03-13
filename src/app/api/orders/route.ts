@@ -29,6 +29,16 @@ export async function GET(req: Request) {
     where.deliveryDriverId = driverId
   }
 
+  const deliveryType = url.searchParams.get('deliveryType')
+  if (deliveryType) {
+    where.deliveryType = deliveryType
+  }
+
+  const unassigned = url.searchParams.get('unassigned')
+  if (unassigned === 'true') {
+    where.deliveryDriverId = null
+  }
+
   const orders = await prisma.order.findMany({
     where,
     include: {
