@@ -1,34 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Mail, Phone, Crown, Star, ShoppingBag,
-  MapPin, Gift, LogOut, Edit3, Check, X,
+  User, Mail, Phone, ShoppingBag,
+  MapPin, Gift, LogOut, Edit3, Check, X, Stamp,
 } from 'lucide-react';
 import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { Input } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationStore } from '@/stores/notification-store';
 import api from '@/lib/api';
-import { cn, getVipColor } from '@/lib/utils';
-import type { VipLevel } from '@/types';
-
-const vipThresholds: Record<string, { next: string | null; points: number; nextPoints: number }> = {
-  BRONZE: { next: 'SILVER', points: 0, nextPoints: 200 },
-  SILVER: { next: 'GOLD', points: 200, nextPoints: 500 },
-  GOLD: { next: 'PLATINUM', points: 500, nextPoints: 1000 },
-  PLATINUM: { next: null, points: 1000, nextPoints: 1000 },
-};
-
-const vipBgColors: Record<string, string> = {
-  BRONZE: 'bg-amber-100 dark:bg-amber-900/30',
-  SILVER: 'bg-gray-100 dark:bg-gray-800/50',
-  GOLD: 'bg-yellow-100 dark:bg-yellow-900/30',
-  PLATINUM: 'bg-purple-100 dark:bg-purple-900/30',
-};
 
 const quickLinks = [
   { href: '/cuenta/pedidos', icon: ShoppingBag, label: 'Mis Pedidos', desc: 'Historial y reorden' },
@@ -49,6 +33,21 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+interface StampData {
+  config: {
+    stampsRequired: number;
+    prizeName: string;
+    prizeDescription: string;
+    prizeDiscount: number;
+  } | null;
+  card: {
+    stamps: number;
+    completed: number;
+    lastStampAt: string | null;
+  } | null;
+  canRedeem: boolean;
+}
+
 export default function CuentaPage() {
   const router = useRouter();
   const authUser = useAuthStore((s) => s.user);
@@ -57,21 +56,44 @@ export default function CuentaPage() {
 
   const user = authUser;
 
+  const [stampData, setStampData] = useState<StampData | null>(null);
+  const [stampLoading, setStampLoading] = useState(true);
+
+  const [editing, setEditing] = useState(false);
+  const [formName, setFormName] = useState(user?.name ?? '');
+  const [formPhone, setFormPhone] = useState(user?.phone ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchStamps() {
+      try {
+        const res = await api.get('/stamps');
+        if (!cancelled) {
+          setStampData(res.data?.data ?? res.data ?? null);
+        }
+      } catch {
+        // Stamp data not available — leave null
+      } finally {
+        if (!cancelled) setStampLoading(false);
+      }
+    }
+    if (user) fetchStamps();
+    return () => { cancelled = true; };
+  }, [user]);
+
   if (!user) {
     router.push('/login');
     return null;
   }
 
-  const vip = vipThresholds[user.vipLevel] ?? vipThresholds.BRONZE;
-  const progressPercent =
-    vip.next === null
-      ? 100
-      : Math.min(100, ((user.loyaltyPoints - vip.points) / (vip.nextPoints - vip.points)) * 100);
-
-  const [editing, setEditing] = useState(false);
-  const [formName, setFormName] = useState(user.name);
-  const [formPhone, setFormPhone] = useState(user.phone ?? '');
-  const [saving, setSaving] = useState(false);
+  const currentStamps = stampData?.card?.stamps ?? 0;
+  const requiredStamps = stampData?.config?.stampsRequired ?? 10;
+  const canRedeem = stampData?.canRedeem ?? false;
+  const stampsRemaining = Math.max(0, requiredStamps - currentStamps);
+  const stampProgress = requiredStamps > 0
+    ? Math.min(100, (currentStamps / requiredStamps) * 100)
+    : 0;
 
   async function handleSave() {
     setSaving(true);
@@ -109,22 +131,28 @@ export default function CuentaPage() {
         {/* Profile card */}
         <motion.div variants={item}>
           <Card hover={false} className="overflow-hidden">
-            {/* VIP banner */}
-            <div className={cn(
-              'flex items-center justify-between px-6 py-3',
-              vipBgColors[user.vipLevel],
-            )}>
+            {/* Stamp card banner */}
+            <div className="flex items-center justify-between px-6 py-3 bg-[#FF6B35]/10">
               <div className="flex items-center gap-2">
-                <Crown className={cn('h-5 w-5', getVipColor(user.vipLevel))} />
-                <span className={cn('text-sm font-bold', getVipColor(user.vipLevel))}>
-                  VIP {user.vipLevel}
+                <Stamp className="h-5 w-5 text-[#FF6B35]" />
+                <span className="text-sm font-bold text-[#FF6B35]">
+                  {currentStamps}/{requiredStamps} sellos
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Star className="h-4 w-4 text-[#F5CB5C]" />
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  {user.loyaltyPoints} pts
-                </span>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-24 overflow-hidden rounded-full bg-[#FF6B35]/20">
+                  <motion.div
+                    className="h-full rounded-full bg-[#FF6B35]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stampProgress}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+                  />
+                </div>
+                {canRedeem && (
+                  <Badge variant="success" size="sm">
+                    Premio!
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -211,32 +239,85 @@ export default function CuentaPage() {
           </Card>
         </motion.div>
 
-        {/* Loyalty progress */}
+        {/* Stamp card progress */}
         <motion.div variants={item}>
           <Card hover={false} className="p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-[var(--text-primary)]">Progreso VIP</h3>
-              {vip.next ? (
-                <Badge variant="info" size="sm">
-                  Siguiente: {vip.next}
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold text-[var(--text-primary)]">Tarjeta de Sellos</h3>
+              {canRedeem ? (
+                <Badge variant="success" size="sm">
+                  Premio disponible!
                 </Badge>
               ) : (
-                <Badge variant="success" size="sm">
-                  Nivel maximo!
+                <Badge variant="info" size="sm">
+                  {currentStamps}/{requiredStamps} sellos
                 </Badge>
               )}
             </div>
+
+            {/* Stamp grid */}
+            {!stampLoading && stampData?.config && (
+              <div className="mb-4 flex flex-wrap gap-2 justify-center">
+                {Array.from({ length: requiredStamps }).map((_, i) => {
+                  const isFilled = i < currentStamps;
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${
+                        isFilled
+                          ? 'border-[#FF6B35] bg-[#FF6B35] text-white'
+                          : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {isFilled ? (
+                        <Stamp className="h-4 w-4" />
+                      ) : (
+                        <span className="text-xs font-medium">{i + 1}</span>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {stampLoading && (
+              <div className="mb-4 flex justify-center">
+                <div className="h-9 w-48 animate-pulse rounded-lg bg-[var(--bg-tertiary)]" />
+              </div>
+            )}
+
+            {/* Progress bar */}
             <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
               <motion.div
                 className="h-full rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F5CB5C]"
                 initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
+                animate={{ width: `${stampProgress}%` }}
                 transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
               />
             </div>
-            <div className="mt-2 flex justify-between text-xs text-[var(--text-muted)]">
-              <span>{user.loyaltyPoints} pts</span>
-              {vip.next && <span>{vip.nextPoints} pts para {vip.next}</span>}
+
+            {/* Status text */}
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-sm text-[var(--text-muted)]">
+                {canRedeem ? (
+                  <span className="font-semibold text-[#2D6A4F]">
+                    Canjea tu premio!
+                  </span>
+                ) : (
+                  <span>
+                    Te faltan <span className="font-semibold text-[#FF6B35]">{stampsRemaining} sellos</span> para tu premio
+                  </span>
+                )}
+              </span>
+              <Link
+                href="/cuenta/puntos"
+                className="text-sm font-medium text-[#FF6B35] hover:underline"
+              >
+                Ver detalles
+              </Link>
             </div>
           </Card>
         </motion.div>

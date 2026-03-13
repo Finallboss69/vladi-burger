@@ -16,6 +16,7 @@ import {
   AlertCircle,
   FileText,
   Hash,
+  Radio,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +30,7 @@ import type { Order } from '@/types';
 import { Role } from '@/types';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
+const LOCATION_UPDATE_INTERVAL = 10_000;
 
 function getTimeSince(dateStr: string): string {
   const now = new Date();
@@ -65,6 +67,113 @@ function formatFullAddress(address: Order['address']): string {
   return parts.join(', ');
 }
 
+/* ─── Location Sharing Hook ─── */
+function useLocationSharing(orders: Order[]) {
+  const [isSharing, setIsSharing] = useState(false);
+  const [lastSent, setLastSent] = useState<Date | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const latestPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Load persisted state
+  useEffect(() => {
+    const stored = localStorage.getItem('delivery-share-location');
+    if (stored === 'true') {
+      setIsSharing(true);
+    }
+  }, []);
+
+  // Start/stop watching
+  useEffect(() => {
+    if (!isSharing) {
+      // Stop watching
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      latestPositionRef.current = null;
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setIsSharing(false);
+      localStorage.setItem('delivery-share-location', 'false');
+      return;
+    }
+
+    // Start watching position
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        latestPositionRef.current = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000,
+      },
+    );
+
+    // Send location updates every 10 seconds
+    const sendUpdates = async () => {
+      const pos = latestPositionRef.current;
+      if (!pos) return;
+
+      const deliveringOrders = orders.filter((o) => o.status === 'DELIVERING');
+      if (deliveringOrders.length === 0) return;
+
+      const promises = deliveringOrders.map((order) =>
+        api
+          .put('/delivery/location', {
+            orderId: order.id,
+            lat: pos.lat,
+            lng: pos.lng,
+          })
+          .catch(() => {
+            // Silently ignore individual update failures
+          }),
+      );
+
+      await Promise.allSettled(promises);
+      setLastSent(new Date());
+    };
+
+    // Send immediately then every 10 seconds
+    sendUpdates();
+    intervalRef.current = setInterval(sendUpdates, LOCATION_UPDATE_INTERVAL);
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isSharing, orders]);
+
+  const toggle = useCallback(() => {
+    setIsSharing((prev) => {
+      const next = !prev;
+      localStorage.setItem('delivery-share-location', String(next));
+      return next;
+    });
+  }, []);
+
+  return { isSharing, toggle, lastSent };
+}
+
 export default function DeliveryPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
@@ -74,7 +183,9 @@ export default function DeliveryPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { isSharing, toggle: toggleSharing, lastSent } = useLocationSharing(orders);
 
   // Auth guard
   useEffect(() => {
@@ -116,9 +227,9 @@ export default function DeliveryPage() {
 
     fetchOrders();
 
-    intervalRef.current = setInterval(fetchOrders, AUTO_REFRESH_INTERVAL);
+    refreshIntervalRef.current = setInterval(fetchOrders, AUTO_REFRESH_INTERVAL);
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
     };
   }, [user, fetchOrders]);
 
@@ -195,24 +306,64 @@ export default function DeliveryPage() {
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchOrders}
-            icon={<RefreshCw className="h-4 w-4" />}
-          >
-            <span className="hidden sm:inline">Actualizar</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Location sharing toggle */}
+            <button
+              onClick={toggleSharing}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
+                isSharing
+                  ? 'bg-[#2D6A4F]/10 text-[#2D6A4F] hover:bg-[#2D6A4F]/20'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]'
+              }`}
+              title={isSharing ? 'Compartiendo ubicacion' : 'Compartir ubicacion'}
+            >
+              <span className="relative flex h-3 w-3">
+                {isSharing && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2D6A4F] opacity-75" />
+                )}
+                <span
+                  className={`relative inline-flex h-3 w-3 rounded-full ${
+                    isSharing ? 'bg-[#2D6A4F]' : 'bg-[#D62828]'
+                  }`}
+                />
+              </span>
+              <Radio className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {isSharing ? 'Ubicacion activa' : 'Compartir ubicacion'}
+              </span>
+            </button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchOrders}
+              icon={<RefreshCw className="h-4 w-4" />}
+            >
+              <span className="hidden sm:inline">Actualizar</span>
+            </Button>
+          </div>
         </div>
 
-        <p className="mt-2 text-xs text-[var(--text-muted)]">
-          Ultima actualizacion:{' '}
-          {lastRefresh.toLocaleTimeString('es-AR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}{' '}
-          &middot; Auto-refresh cada 30s
-        </p>
+        <div className="mt-2 flex items-center gap-3">
+          <p className="text-xs text-[var(--text-muted)]">
+            Ultima actualizacion:{' '}
+            {lastRefresh.toLocaleTimeString('es-AR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}{' '}
+            &middot; Auto-refresh cada 30s
+          </p>
+          {isSharing && lastSent && (
+            <p className="text-xs text-[#2D6A4F]">
+              GPS enviado:{' '}
+              {lastSent.toLocaleTimeString('es-AR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
+            </p>
+          )}
+        </div>
       </motion.div>
 
       {loading ? (

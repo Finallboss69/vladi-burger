@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -92,6 +92,298 @@ function getEstimatedTime(status: OrderStatus): string {
     default:
       return '--';
   }
+}
+
+function getTimeSinceUpdate(dateStr: string): string {
+  const now = new Date();
+  const then = new Date(dateStr);
+  const diffMs = now.getTime() - then.getTime();
+  const secs = Math.floor(diffMs / 1000);
+  if (secs < 10) return 'Ahora';
+  if (secs < 60) return `Hace ${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `Hace ${mins}m`;
+  return `Hace ${Math.floor(mins / 60)}h`;
+}
+
+/* ---- Live Delivery Map ---- */
+
+interface DeliveryLocationData {
+  lat: number;
+  lng: number;
+  updatedAt: string;
+}
+
+function LiveDeliveryMap({
+  orderId,
+  deliveryAddress,
+}: {
+  orderId: string;
+  deliveryAddress: Order['address'];
+}) {
+  const [location, setLocation] = useState<DeliveryLocationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [, setTick] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchLocation = useCallback(async () => {
+    try {
+      const res = await api.get('/delivery/location', {
+        params: { orderId },
+      });
+      if (res.data.data) {
+        setLocation(res.data.data);
+      }
+    } catch {
+      // Silently ignore - will show fallback
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  // Poll every 5 seconds
+  useEffect(() => {
+    fetchLocation();
+    pollRef.current = setInterval(fetchLocation, 5000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchLocation]);
+
+  // Update "time since" display every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (loading || !location) {
+    return <FallbackMap />;
+  }
+
+  // Calculate driver position relative to destination for the SVG visualization
+  const destLat = deliveryAddress?.lat ?? 0;
+  const destLng = deliveryAddress?.lng ?? 0;
+  const hasRealDest = destLat !== 0 && destLng !== 0;
+
+  // Compute normalized positions on SVG canvas
+  // Driver position and destination shown on a simplified map
+  let driverX = 25;
+  let driverY = 60;
+  const destX = 75;
+  const destY = 35;
+
+  if (hasRealDest) {
+    // Calculate relative offset between driver and destination
+    const dLat = location.lat - destLat;
+    const dLng = location.lng - destLng;
+    // Scale: ~0.01 degree ~= 1km, map is roughly 4km across
+    const scale = 25; // percentage per 0.01 degrees
+    driverX = Math.max(8, Math.min(92, destX - dLng * scale * 100));
+    driverY = Math.max(8, Math.min(92, destY + dLat * scale * 100));
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+    >
+      <div className="relative flex h-56 items-center justify-center bg-gradient-to-br from-[#2D6A4F]/10 via-[var(--bg-secondary)] to-[#FF6B35]/10">
+        {/* Map grid background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="grid h-full grid-cols-8 grid-rows-6">
+            {Array.from({ length: 48 }).map((_, i) => (
+              <div key={i} className="border border-[var(--border-color)]" />
+            ))}
+          </div>
+        </div>
+
+        {/* SVG overlay for route and markers */}
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {/* Route line */}
+          <motion.line
+            x1={`${driverX}%`}
+            y1={`${driverY}%`}
+            x2={`${destX}%`}
+            y2={`${destY}%`}
+            stroke="#FF6B35"
+            strokeWidth="0.8"
+            strokeDasharray="3 2"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 0.6 }}
+            transition={{ duration: 1 }}
+          />
+        </svg>
+
+        {/* Driver marker - animated */}
+        <motion.div
+          animate={{
+            left: `${driverX}%`,
+            top: `${driverY}%`,
+          }}
+          transition={{ duration: 1, ease: 'easeInOut' }}
+          className="absolute z-20"
+          style={{
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          {/* Pulse ring */}
+          <motion.div
+            animate={{ scale: [1, 2], opacity: [0.5, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="absolute inset-0 rounded-full bg-[#FF6B35]"
+            style={{ width: 48, height: 48, marginLeft: -8, marginTop: -8 }}
+          />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6B35] shadow-lg ring-4 ring-[#FF6B35]/20">
+            <Truck className="h-6 w-6 text-white" />
+          </div>
+          <div className="mt-1 flex justify-center">
+            <div className="h-2 w-6 rounded-full bg-black/10 blur-sm" />
+          </div>
+        </motion.div>
+
+        {/* Restaurant marker */}
+        {hasRealDest && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="absolute z-10"
+            style={{
+              left: `${Math.max(8, Math.min(92, driverX + (destX - driverX) * 0.1))}%`,
+              top: `${Math.max(8, Math.min(92, driverY + (destY - driverY) * 0.1))}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2D6A4F] shadow">
+              <UtensilsCrossed className="h-4 w-4 text-white" />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Destination marker */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.5 }}
+          className="absolute z-10"
+          style={{
+            left: `${destX}%`,
+            top: `${destY}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <motion.div
+            animate={{ y: [-2, 2, -2] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D62828] shadow-lg ring-4 ring-[#D62828]/20">
+              <MapPin className="h-5 w-5 text-white" />
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Bottom bar with live info */}
+      <div className="flex items-center justify-between border-t border-[var(--border-color)] px-5 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2D6A4F] opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#2D6A4F]" />
+            </span>
+            <span className="font-medium text-[#2D6A4F]">En vivo</span>
+          </div>
+          <span className="text-xs text-[var(--text-muted)]">
+            Ultima actualizacion: {getTimeSinceUpdate(location.updatedAt)}
+          </span>
+        </div>
+        <Button variant="ghost" size="sm" icon={<Phone className="h-4 w-4" />}>
+          Contactar
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ---- Fallback decorative map (no location data) ---- */
+function FallbackMap() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+    >
+      <div className="relative flex h-56 items-center justify-center bg-gradient-to-br from-[#2D6A4F]/10 via-[var(--bg-secondary)] to-[#FF6B35]/10">
+        {/* Stylized map grid */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="grid h-full grid-cols-8 grid-rows-6">
+            {Array.from({ length: 48 }).map((_, i) => (
+              <div key={i} className="border border-[var(--border-color)]" />
+            ))}
+          </div>
+        </div>
+
+        {/* Animated delivery pin */}
+        <motion.div
+          animate={{ y: [-5, 5, -5] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          className="relative z-10 flex flex-col items-center"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF6B35] shadow-lg">
+            <Truck className="h-7 w-7 text-white" />
+          </div>
+          <div className="mt-1 h-3 w-8 rounded-full bg-black/10 blur-sm" />
+        </motion.div>
+
+        {/* Origin & destination dots */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.5 }}
+          className="absolute left-[20%] top-[60%] flex h-8 w-8 items-center justify-center rounded-full bg-[#2D6A4F] shadow"
+        >
+          <UtensilsCrossed className="h-4 w-4 text-white" />
+        </motion.div>
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.7 }}
+          className="absolute right-[20%] top-[35%] flex h-8 w-8 items-center justify-center rounded-full bg-[#D62828] shadow"
+        >
+          <MapPin className="h-4 w-4 text-white" />
+        </motion.div>
+
+        {/* Dashed route */}
+        <svg className="absolute inset-0 h-full w-full">
+          <motion.line
+            x1="25%"
+            y1="62%"
+            x2="75%"
+            y2="38%"
+            stroke="var(--text-muted)"
+            strokeWidth="2"
+            strokeDasharray="8 4"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 0.4 }}
+            transition={{ delay: 0.8, duration: 1 }}
+          />
+        </svg>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-[var(--border-color)] px-5 py-3">
+        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          <MapPin className="h-4 w-4" />
+          <span>Seguimiento en tiempo real</span>
+        </div>
+        <Button variant="ghost" size="sm" icon={<Phone className="h-4 w-4" />}>
+          Contactar
+        </Button>
+      </div>
+    </motion.div>
+  );
 }
 
 /* ---- Review Modal ---- */
@@ -270,6 +562,8 @@ export default function PedidoPage() {
     );
   }
 
+  const isDelivering = currentStatus === ('DELIVERING' as OrderStatus);
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
@@ -426,86 +720,16 @@ export default function PedidoPage() {
             </div>
           </motion.div>
 
-          {/* Map Placeholder (for delivery) */}
+          {/* Map - Live tracking for DELIVERING, fallback for other delivery statuses */}
           {order.deliveryType === 'DELIVERY' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
-            >
-              <div className="relative flex h-56 items-center justify-center bg-gradient-to-br from-[#2D6A4F]/10 via-[var(--bg-secondary)] to-[#FF6B35]/10">
-                {/* Stylized map grid */}
-                <div className="absolute inset-0 opacity-20">
-                  <div className="grid h-full grid-cols-8 grid-rows-6">
-                    {Array.from({ length: 48 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="border border-[var(--border-color)]"
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Animated delivery pin */}
-                <motion.div
-                  animate={{
-                    y: [-5, 5, -5],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative z-10 flex flex-col items-center"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF6B35] shadow-lg">
-                    <Truck className="h-7 w-7 text-white" />
-                  </div>
-                  <div className="mt-1 h-3 w-8 rounded-full bg-black/10 blur-sm" />
-                </motion.div>
-
-                {/* Origin & destination dots */}
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute left-[20%] top-[60%] flex h-8 w-8 items-center justify-center rounded-full bg-[#2D6A4F] shadow"
-                >
-                  <UtensilsCrossed className="h-4 w-4 text-white" />
-                </motion.div>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.7 }}
-                  className="absolute right-[20%] top-[35%] flex h-8 w-8 items-center justify-center rounded-full bg-[#D62828] shadow"
-                >
-                  <MapPin className="h-4 w-4 text-white" />
-                </motion.div>
-
-                {/* Dashed route */}
-                <svg className="absolute inset-0 h-full w-full">
-                  <motion.line
-                    x1="25%"
-                    y1="62%"
-                    x2="75%"
-                    y2="38%"
-                    stroke="var(--text-muted)"
-                    strokeWidth="2"
-                    strokeDasharray="8 4"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 0.4 }}
-                    transition={{ delay: 0.8, duration: 1 }}
-                  />
-                </svg>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[var(--border-color)] px-5 py-3">
-                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                  <MapPin className="h-4 w-4" />
-                  <span>Seguimiento en tiempo real</span>
-                </div>
-                <Button variant="ghost" size="sm" icon={<Phone className="h-4 w-4" />}>
-                  Contactar
-                </Button>
-              </div>
-            </motion.div>
+            isDelivering ? (
+              <LiveDeliveryMap
+                orderId={orderId}
+                deliveryAddress={order.address}
+              />
+            ) : (
+              <FallbackMap />
+            )
           )}
         </div>
 
