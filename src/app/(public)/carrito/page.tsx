@@ -307,7 +307,7 @@ export default function CarritoPage() {
             ) : (
               <div className="flex gap-2">
                 <Input
-                  placeholder="Ej: VLADI10"
+                  placeholder="Ej: DESCUENTO10"
                   value={couponInput}
                   onChange={(e) => {
                     setCouponInput(e.target.value);

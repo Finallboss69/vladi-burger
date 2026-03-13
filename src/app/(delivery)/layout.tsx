@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { Role } from '@/types';
+import { RESTAURANT } from '@/lib/config';
 
 function Clock() {
   const [time, setTime] = useState('');
@@ -88,7 +89,7 @@ export default function DeliveryLayout({
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-[#FF6B35]" />
             <span className="text-sm font-bold text-white">
-              Vladi.burger <span className="text-[#FF6B35]">Entregas</span>
+              {RESTAURANT.name} <span className="text-[#FF6B35]">Entregas</span>
             </span>
           </div>
         </div>

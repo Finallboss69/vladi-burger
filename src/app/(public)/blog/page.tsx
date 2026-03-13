@@ -71,7 +71,9 @@ export default function BlogPage() {
       .catch(() => setPublishedPosts([]));
   }, []);
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const [subscribing, setSubscribing] = useState(false);
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
       addNotification({
@@ -82,13 +84,26 @@ export default function BlogPage() {
       });
       return;
     }
-    addNotification({
-      type: 'success',
-      title: 'Suscripcion exitosa',
-      message: 'Te enviamos un email de confirmacion. Gracias por suscribirte!',
-      duration: 4000,
-    });
-    setEmail('');
+    setSubscribing(true);
+    try {
+      await api.post('/newsletter', { email: email.trim() });
+      addNotification({
+        type: 'success',
+        title: 'Suscripcion exitosa',
+        message: 'Gracias por suscribirte! Te mantendremos al tanto.',
+        duration: 4000,
+      });
+      setEmail('');
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo suscribir. Intenta de nuevo.',
+        duration: 3000,
+      });
+    } finally {
+      setSubscribing(false);
+    }
   };
 
   return (
@@ -158,9 +173,10 @@ export default function BlogPage() {
             <motion.button
               whileTap={{ scale: 0.95 }}
               type="submit"
-              className="inline-flex items-center justify-center rounded-xl bg-[#FF6B35] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#FF6B35]/90 cursor-pointer"
+              disabled={subscribing}
+              className="inline-flex items-center justify-center rounded-xl bg-[#FF6B35] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#FF6B35]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Suscribirme
+              {subscribing ? 'Suscribiendo...' : 'Suscribirme'}
             </motion.button>
           </form>
         </motion.div>

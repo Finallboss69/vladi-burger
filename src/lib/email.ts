@@ -1,5 +1,7 @@
-// Maileroo transactional email service for Vladi.burger
+// Maileroo transactional email service
 // All email sending is fire-and-forget: failures are logged but never block the main flow.
+
+import { RESTAURANT } from './config'
 
 const MAILEROO_API_URL = 'https://smtp.maileroo.com/v1/email/send'
 
@@ -8,11 +10,11 @@ function getApiKey(): string {
 }
 
 function getFromEmail(): string {
-  return process.env.MAILEROO_FROM_EMAIL ?? 'pedidos@vladiburger.com'
+  return process.env.MAILEROO_FROM_EMAIL ?? `pedidos@${RESTAURANT.email.split('@')[1]}`
 }
 
 function getFromName(): string {
-  return process.env.MAILEROO_FROM_NAME ?? 'Vladi.burger'
+  return process.env.MAILEROO_FROM_NAME ?? RESTAURANT.name
 }
 
 // ---------------------------------------------------------------------------
@@ -31,7 +33,7 @@ function wrapInLayout(content: string): string {
         <tr>
           <td style="background-color:#FF6B35;padding:28px 32px;text-align:center;">
             <h1 style="margin:0;color:#FFFFFF;font-size:28px;font-weight:800;letter-spacing:1px;">
-              🍔 Vladi.burger
+              🍔 ${RESTAURANT.name}
             </h1>
           </td>
         </tr>
@@ -45,7 +47,7 @@ function wrapInLayout(content: string): string {
         <tr>
           <td style="background-color:#222222;padding:20px 32px;text-align:center;">
             <p style="margin:0;color:#888888;font-size:12px;">
-              &copy; ${new Date().getFullYear()} Vladi.burger &mdash; Las mejores hamburguesas artesanales
+              &copy; ${new Date().getFullYear()} ${RESTAURANT.name} &mdash; ${RESTAURANT.slogan}
             </p>
             <p style="margin:8px 0 0;color:#666666;font-size:11px;">
               Este email fue enviado desde un sistema automatizado. No responder a este correo.
@@ -177,7 +179,7 @@ export async function sendOrderConfirmation({
 
   return sendEmail({
     to,
-    subject: `Pedido #${orderNumber} confirmado - Vladi.burger`,
+    subject: `Pedido #${orderNumber} confirmado - ${RESTAURANT.name}`,
     html: wrapInLayout(content),
   })
 }
@@ -193,9 +195,9 @@ interface SendWelcomeEmailParams {
 
 export async function sendWelcomeEmail({ to, customerName }: SendWelcomeEmailParams): Promise<boolean> {
   const content = `
-    <h2 style="margin:0 0 8px;color:#FF6B35;font-size:22px;">Bienvenido a Vladi.burger</h2>
+    <h2 style="margin:0 0 8px;color:#FF6B35;font-size:22px;">Bienvenido a ${RESTAURANT.name}</h2>
     <p style="color:#E0E0E0;font-size:16px;margin:0 0 24px;">
-      Hola <strong>${customerName}</strong>, ya formas parte de la familia Vladi.burger.
+      Hola <strong>${customerName}</strong>, ya formas parte de la familia ${RESTAURANT.name}.
     </p>
 
     <div style="background-color:#333333;border-radius:8px;padding:24px;margin-bottom:24px;text-align:center;">
@@ -219,7 +221,7 @@ export async function sendWelcomeEmail({ to, customerName }: SendWelcomeEmailPar
 
   return sendEmail({
     to,
-    subject: 'Bienvenido a Vladi.burger',
+    subject: `Bienvenido a ${RESTAURANT.name}`,
     html: wrapInLayout(content),
   })
 }
@@ -279,12 +281,12 @@ export async function sendOrderStatusUpdate({
     </div>
 
     <p style="color:#AAAAAA;font-size:13px;margin:24px 0 0;text-align:center;">
-      Gracias por elegir Vladi.burger.
+      Gracias por elegir ${RESTAURANT.name}.
     </p>`
 
   return sendEmail({
     to,
-    subject: `Pedido #${orderNumber}: ${label} - Vladi.burger`,
+    subject: `Pedido #${orderNumber}: ${label} - ${RESTAURANT.name}`,
     html: wrapInLayout(content),
   })
 }

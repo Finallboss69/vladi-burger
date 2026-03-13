@@ -1,4 +1,5 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
+import { RESTAURANT } from './config'
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN ?? ''
 
@@ -18,7 +19,7 @@ export interface CreatePreferenceInput {
 }
 
 export async function createPreference(input: CreatePreferenceInput) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const webhookUrl = process.env.MERCADOPAGO_WEBHOOK_URL ?? `${appUrl}/api/payments/mercadopago/webhook`
 
   const preference = new Preference(client)
@@ -40,7 +41,7 @@ export async function createPreference(input: CreatePreferenceInput) {
       auto_return: 'approved',
       external_reference: input.orderId,
       notification_url: webhookUrl,
-      statement_descriptor: 'VLADI BURGER',
+      statement_descriptor: RESTAURANT.paymentDescriptor,
     },
   })
 

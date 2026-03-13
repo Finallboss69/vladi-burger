@@ -81,7 +81,6 @@ export async function POST(req: Request) {
     }
 
     const total = subtotal - discount
-    const pointsEarned = Math.floor(total / 100)
 
     // Generate order number
     const lastOrder = await prisma.order.findFirst({ orderBy: { orderNumber: 'desc' } })
@@ -100,7 +99,7 @@ export async function POST(req: Request) {
         addressId: addressId || null,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         notes: notes || null,
-        pointsEarned,
+        pointsEarned: 0,
         source: 'WEB',
         items: {
           create: items.map((item: { productId?: string; name: string; price: number; quantity: number; extras?: unknown[]; isCustom?: boolean; customIngredients?: unknown[]; notes?: string }) => ({
@@ -119,12 +118,6 @@ export async function POST(req: Request) {
         items: true,
         address: true,
       },
-    })
-
-    // Award loyalty points
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { loyaltyPoints: { increment: pointsEarned } },
     })
 
     // Decrease stock

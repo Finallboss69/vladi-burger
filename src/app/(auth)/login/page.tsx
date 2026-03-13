@@ -201,15 +201,6 @@ function LoginForm() {
             </button>
           </div>
 
-          <div className="flex justify-end">
-            <Link
-              href="#"
-              className="text-sm text-[#FF6B35] transition-colors hover:text-[#FF6B35]/80"
-            >
-              Olvidaste tu contrasena?
-            </Link>
-          </div>
-
           <Button
             type="submit"
             size="lg"

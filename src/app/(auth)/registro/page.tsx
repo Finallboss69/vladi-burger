@@ -89,7 +89,7 @@ export default function RegistroPage() {
       addNotification({
         type: 'success',
         title: 'Cuenta creada!',
-        message: 'Bienvenido a Vladi.burger',
+        message: 'Tu cuenta fue creada exitosamente',
       });
       router.push('/');
     } else {
@@ -118,7 +118,7 @@ export default function RegistroPage() {
             Crear cuenta
           </h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Unite a la familia Vladi.burger
+            Registrate para empezar a pedir
           </p>
         </div>
 

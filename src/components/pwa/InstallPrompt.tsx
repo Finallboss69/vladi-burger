@@ -75,7 +75,7 @@ export function InstallPrompt() {
           {/* Text */}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[var(--text-primary)]">
-              Instalar Vladi.burger
+              Instalar la app
             </p>
             <p className="text-xs text-[var(--text-muted)]">
               Agrega la app a tu inicio para pedir mas rapido

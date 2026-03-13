@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ChefHat } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { RESTAURANT } from '@/lib/config';
 
 function Clock() {
   const [time, setTime] = useState('');
@@ -73,7 +74,7 @@ export default function KitchenLayout({
           <div className="flex items-center gap-2">
             <ChefHat className="h-5 w-5 text-[#FF6B35]" />
             <span className="text-sm font-bold text-white">
-              Vladi.burger <span className="text-[#FF6B35]">KDS</span>
+              {RESTAURANT.name} <span className="text-[#FF6B35]">KDS</span>
             </span>
           </div>
         </div>

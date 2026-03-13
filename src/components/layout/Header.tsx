@@ -13,6 +13,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useThemeStore } from '@/stores/theme-store';
 import { Role } from '@/types';
+import { RESTAURANT } from '@/lib/config';
 
 const navLinks = [
   { href: '/menu', label: 'Menu' },
@@ -84,7 +85,7 @@ export function Header() {
               <Flame className="h-6 w-6" />
             </motion.div>
             <span className="text-xl font-bold text-[var(--text-primary)]">
-              Vladi<span className="text-[#FF6B35]">.burger</span>
+              {RESTAURANT.shortName}<span className="text-[#FF6B35]">.burger</span>
             </span>
           </Link>
 
@@ -259,8 +260,8 @@ export function Header() {
       </header>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/95 backdrop-blur-xl md:hidden safe-area-bottom">
-        <div className="flex items-center justify-around px-2 py-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/95 backdrop-blur-xl md:hidden safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-around px-2 py-1.5">
           {(user?.role === Role.DELIVERY ? deliveryNavItems : mobileNavItems).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);

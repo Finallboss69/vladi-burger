@@ -12,7 +12,7 @@ import {
   Clock,
   Instagram,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { RESTAURANT } from '@/lib/config';
 
 const values = [
   {
@@ -75,7 +75,7 @@ export default function NosotrosPage() {
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-white/80 leading-relaxed">
             De un sueno entre amigos a la mejor burger de la ciudad.
-            Somos Vladi.burger y esta es nuestra historia.
+            Somos {RESTAURANT.name} y esta es nuestra historia.
           </p>
         </motion.div>
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#FF6B35]/10" />
@@ -90,24 +90,9 @@ export default function NosotrosPage() {
               Como empezo todo
             </h2>
             <div className="flex flex-col gap-4 text-[var(--text-secondary)] leading-relaxed">
-              <p>
-                Todo comenzo en 2024, cuando Vladi decidio que las hamburguesas que comia
-                no estaban a la altura de lo que el imaginaba. Con una plancha prestada,
-                un par de recetas experimentales y mucha pasion, nacio la primera
-                Vladi.burger en una cocina entre amigos.
-              </p>
-              <p>
-                Lo que empezo como un hobby se convirtio rapidamente en una obsesion.
-                Cada salsa fue probada decenas de veces, cada pan fue perfeccionado hasta
-                lograr la textura ideal, y cada corte de carne fue seleccionado con el
-                mismo cuidado que un chef de alta cocina.
-              </p>
-              <p>
-                Hoy, Vladi.burger no es solo una hamburgueseria. Es un punto de
-                encuentro para los que creen que una buena burger puede cambiar un mal
-                dia. Es una comunidad de personas que valoran la calidad, la creatividad
-                y el buen comer.
-              </p>
+              {RESTAURANT.founder.story.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
             </div>
           </motion.div>
         </div>
@@ -169,16 +154,13 @@ export default function NosotrosPage() {
             </div>
             <div className="flex flex-col gap-3 text-center sm:text-left">
               <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-                Vladi
+                {RESTAURANT.founder.name}
               </h2>
               <p className="text-sm font-medium text-[#FF6B35]">
-                Fundador & Chef
+                {RESTAURANT.founder.title}
               </p>
               <p className="leading-relaxed text-[var(--text-secondary)]">
-                &ldquo;Mi sueno siempre fue crear algo que hiciera feliz a la gente.
-                Cuando veo a alguien morder una de nuestras burgers y sonreir, se que
-                estamos haciendo las cosas bien. Cada ingrediente esta pensado para que
-                esa experiencia sea unica.&rdquo;
+                &ldquo;{RESTAURANT.founder.quote}&rdquo;
               </p>
             </div>
           </motion.div>
@@ -200,22 +182,22 @@ export default function NosotrosPage() {
               {
                 icon: MapPin,
                 label: 'Direccion',
-                value: 'Av. Corrientes 1234, CABA',
+                value: RESTAURANT.address,
               },
               {
                 icon: Phone,
                 label: 'Telefono',
-                value: '+54 11 2345-6789',
+                value: RESTAURANT.phone,
               },
               {
                 icon: Mail,
                 label: 'Email',
-                value: 'hola@vladiburger.com',
+                value: RESTAURANT.email,
               },
               {
                 icon: Clock,
                 label: 'Horario',
-                value: 'Lun-Sab 11-23hs, Dom 12-22hs',
+                value: RESTAURANT.hoursShort,
               },
             ].map((item, i) => {
               const Icon = item.icon;
@@ -246,13 +228,13 @@ export default function NosotrosPage() {
             className="mt-12 flex justify-center"
           >
             <a
-              href="https://instagram.com/vladi.burger"
+              href={RESTAURANT.instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 text-sm font-semibold transition-colors hover:bg-white/20"
             >
               <Instagram className="h-5 w-5" />
-              @vladi.burger
+              @{RESTAURANT.instagram}
             </a>
           </motion.div>
         </div>

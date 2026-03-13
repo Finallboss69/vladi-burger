@@ -132,7 +132,7 @@ export default function AdminDashboard() {
       <motion.div variants={item}>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
-          Resumen general de Vladi.burger
+          Resumen general
         </p>
       </motion.div>
 

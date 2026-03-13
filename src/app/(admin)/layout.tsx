@@ -21,10 +21,12 @@ import {
   Truck,
   Navigation,
   Camera,
+  FileText,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { RESTAURANT } from '@/lib/config';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,6 +39,7 @@ const navItems = [
   { href: '/admin/delivery', label: 'Delivery', icon: Truck },
   { href: '/admin/asignar', label: 'Asignar Pedidos', icon: Navigation },
   { href: '/admin/fotos', label: 'Fotos', icon: Camera },
+  { href: '/admin/blog', label: 'Blog', icon: FileText },
   { href: '/cocina', label: 'Cocina', icon: ChefHat },
 ];
 
@@ -84,7 +87,7 @@ export default function AdminLayout({
               V
             </div>
             <div>
-              <h1 className="text-lg font-bold text-[var(--text-primary)]">Vladi.burger</h1>
+              <h1 className="text-lg font-bold text-[var(--text-primary)]">{RESTAURANT.name}</h1>
               <p className="text-xs text-[var(--text-muted)]">Panel Admin</p>
             </div>
           </div>

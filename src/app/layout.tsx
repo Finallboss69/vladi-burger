@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/layout/Providers';
+import { RESTAURANT } from '@/lib/config';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -9,15 +10,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Vladi.burger | Hamburguesas Artesanales',
-  description: 'Las mejores hamburguesas artesanales. Pedí online, armá tu propia burger y disfrutá.',
-  keywords: ['hamburguesas', 'artesanales', 'delivery', 'buenos aires'],
+  title: `${RESTAURANT.name} | ${RESTAURANT.tagline}`,
+  description: RESTAURANT.description,
+  keywords: [...RESTAURANT.keywords],
   manifest: '/manifest.json',
-  themeColor: '#FF6B35',
+  themeColor: RESTAURANT.primaryColor,
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Vladi.burger',
+    title: RESTAURANT.name,
   },
   other: {
     'mobile-web-app-capable': 'yes',

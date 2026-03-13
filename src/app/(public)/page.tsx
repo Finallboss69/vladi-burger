@@ -254,14 +254,23 @@ export default function HomePage() {
   const [avgRating, setAvgRating] = useState('4.8');
   const [totalReviews, setTotalReviews] = useState(0);
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    api.get('/products?categoryId=1').then((res) => {
+    api.get('/products?limit=6').then((res) => {
       const burgers = res.data.data.filter((p: Product) => p.isActive);
       setAllBurgers(burgers);
       if (burgers.length > 0) {
         setActiveIndex(burgers.length - 1);
       }
+    }).catch(() => {});
+
+    api.get('/products?limit=8').then((res) => {
+      const products = res.data.data.filter((p: Product) => p.isActive);
+      // Show different products in each section
+      setPopularProducts(products.slice(0, 4));
+      setRecommendedProducts(products.slice(4, 8));
     }).catch(() => {});
 
     api.get('/stats').then((res) => {
@@ -312,7 +321,7 @@ export default function HomePage() {
           className="relative mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:py-14"
         >
           {/* Vertical cards row — tall narrow strips side by side */}
-          <div className="flex gap-1.5 sm:gap-2 h-[420px] sm:h-[460px] lg:h-[500px]">
+          <div className="flex gap-1 sm:gap-2 h-[360px] sm:h-[460px] lg:h-[500px]">
             {activeIndex >= 0 && allBurgers.map((burger, i) => {
               const isActive = i === activeIndex;
               const burgerLowStock = burger.stock > 0 && burger.stock < 5;
@@ -322,13 +331,13 @@ export default function HomePage() {
                   key={burger.id}
                   onClick={() => setActiveIndex(i)}
                   className={cn(
-                    'relative cursor-pointer overflow-hidden rounded-2xl transition-shadow duration-500',
+                    'relative cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl transition-shadow duration-500',
                     isActive
                       ? 'shadow-2xl shadow-[#FF6B35]/10'
                       : 'shadow-md hover:shadow-lg',
                   )}
                   animate={{
-                    flex: isActive ? 5 : 0.5,
+                    flex: isActive ? 5 : 0.6,
                   }}
                   transition={{
                     flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
@@ -367,13 +376,13 @@ export default function HomePage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute inset-0 flex flex-col items-center justify-between py-3"
+                        className="absolute inset-0 flex flex-col items-center justify-between py-2 sm:py-3"
                       >
                         {/* Stock dot indicator at top */}
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-center gap-0.5 sm:gap-1">
                           <div
                             className={cn(
-                              'h-2 w-2 rounded-full',
+                              'h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full',
                               burger.stock === 0
                                 ? 'bg-red-500'
                                 : burger.stock > 0 && burger.stock < 5
@@ -381,20 +390,17 @@ export default function HomePage() {
                                   : 'bg-emerald-400',
                             )}
                           />
-                          <span className="text-[8px] font-bold text-white/50">
-                            {burger.stock === -1 ? '∞' : burger.stock}
-                          </span>
                         </div>
 
                         {/* Name + price at bottom */}
-                        <div className="flex flex-col items-center gap-2">
+                        <div className="flex flex-col items-center gap-1.5 sm:gap-2">
                           <span
-                            className="text-[11px] sm:text-xs font-bold text-white/80 tracking-wider"
+                            className="text-[10px] sm:text-xs font-bold text-white/80 tracking-wider max-h-[180px] sm:max-h-[240px] overflow-hidden"
                             style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                           >
                             {burger.name}
                           </span>
-                          <span className="text-[10px] font-bold text-[#FF6B35]">
+                          <span className="text-[9px] sm:text-[10px] font-bold text-[#FF6B35]">
                             {formatPrice(burger.price)}
                           </span>
                         </div>
@@ -410,7 +416,7 @@ export default function HomePage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.4, delay: 0.1 }}
-                        className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 lg:p-8"
+                        className="absolute inset-0 flex flex-col justify-end p-3 sm:p-6 lg:p-8"
                       >
                         {/* Tags + Stock */}
                         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
@@ -494,17 +500,17 @@ export default function HomePage() {
           </div>
 
           {/* Bottom bar: dots + CTAs */}
-          <div className="mt-5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+          <div className="mt-4 sm:mt-5 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-1.5">
               {allBurgers.map((b, i) => (
                 <button
                   key={b.id}
                   onClick={() => setActiveIndex(i)}
                   className={cn(
-                    'h-1 rounded-full transition-all duration-400 cursor-pointer',
+                    'slider-dot rounded-full transition-all duration-400 cursor-pointer',
                     i === activeIndex
-                      ? 'w-6 bg-[#FF6B35]'
-                      : 'w-1.5 bg-white/15 hover:bg-white/30',
+                      ? 'h-2 sm:h-1.5 w-7 sm:w-6 bg-[#FF6B35] shadow-sm shadow-[#FF6B35]/40'
+                      : 'h-2 sm:h-1.5 w-2 sm:w-1.5 bg-white/20 hover:bg-white/40',
                   )}
                   aria-label={b.name}
                 />
@@ -533,7 +539,7 @@ export default function HomePage() {
       {/* ====== Stats Bar ====== */}
       <section className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="grid grid-cols-4 divide-x divide-[var(--border-color)]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--border-color)]">
             {[
               { icon: Flame, value: stats ? formatStatValue(stats.burgersSold) : '---', label: 'Burgers vendidas', color: '#FF6B35' },
               { icon: Star, value: stats?.avgRating ? String(stats.avgRating) : (totalReviews > 0 ? avgRating : '---'), label: 'Rating promedio', color: '#F5CB5C' },
@@ -542,7 +548,10 @@ export default function HomePage() {
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}
-                className="flex flex-col items-center gap-1 py-5 sm:py-6 sm:flex-row sm:gap-3 sm:justify-center"
+                className={cn(
+                  'flex flex-col items-center gap-1 py-4 sm:py-6 sm:flex-row sm:gap-3 sm:justify-center',
+                  i >= 2 && 'border-t border-[var(--border-color)] sm:border-t-0',
+                )}
                 initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -553,7 +562,7 @@ export default function HomePage() {
                   <span className="block text-lg sm:text-xl font-extrabold text-[var(--text-primary)]">
                     {stat.value}
                   </span>
-                  <span className="block text-[10px] sm:text-xs text-[var(--text-muted)]">
+                  <span className="block text-[11px] sm:text-xs text-[var(--text-muted)]">
                     {stat.label}
                   </span>
                 </div>
@@ -563,27 +572,176 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ====== Reviews from real customers ====== */}
-      {reviews.length > 0 && (
-        <section className="bg-[var(--bg-primary)] py-14 sm:py-18">
+      {/* ====== Most Ordered ====== */}
+      {popularProducts.length > 0 && (
+        <section className="bg-[var(--bg-secondary)] py-10 sm:py-18">
           <div className="mx-auto max-w-7xl px-4">
             <motion.div
-              className="mb-8 sm:mb-10 flex items-end justify-between"
+              className="mb-6 sm:mb-10 flex items-end justify-between"
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
               <div>
-                <h2 className="text-2xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
-                  Lo que dicen nuestros clientes
+                <h2 className="text-xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
+                  Los mas pedidos
                 </h2>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {totalReviews} resena{totalReviews !== 1 ? 's' : ''} reales de nuestros clientes
+                <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
+                  Los favoritos de nuestros clientes
                 </p>
               </div>
+              <Link href="/menu">
+                <Button variant="ghost" size="sm" icon={<ArrowRight className="h-4 w-4" />}>
+                  Ver todo
+                </Button>
+              </Link>
             </motion.div>
 
-            <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4">
+              {popularProducts.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  onClick={() => setSelectedBurger(product)}
+                  className="group cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] transition-shadow hover:shadow-lg active:scale-[0.98]"
+                >
+                  <div className="relative aspect-[4/3] sm:h-44 overflow-hidden">
+                    {product.imageUrl ? (
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[var(--bg-tertiary)]">
+                        <span className="text-4xl">🍔</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  </div>
+                  <div className="p-2.5 sm:p-4">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-1 sm:text-base">
+                      {product.name}
+                    </h3>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-[var(--text-muted)] line-clamp-1">
+                      {product.description}
+                    </p>
+                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between">
+                      <span className="text-sm font-extrabold text-[#FF6B35] sm:text-lg">
+                        {formatPrice(product.price)}
+                      </span>
+                      <span className="no-min-size flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35]/10 text-[#FF6B35] transition-colors group-hover:bg-[#FF6B35] group-hover:text-white">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ====== Recommended ====== */}
+      {recommendedProducts.length > 0 && (
+        <section className="bg-[var(--bg-primary)] py-10 sm:py-18">
+          <div className="mx-auto max-w-7xl px-4">
+            <motion.div
+              className="mb-6 sm:mb-10 flex items-end justify-between"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div>
+                <h2 className="text-xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
+                  Te recomendamos
+                </h2>
+                <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
+                  Descubri nuevos sabores
+                </p>
+              </div>
+              <Link href="/menu">
+                <Button variant="ghost" size="sm" icon={<Flame className="h-4 w-4" />}>
+                  Ver mas
+                </Button>
+              </Link>
+            </motion.div>
+
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4">
+              {recommendedProducts.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  onClick={() => setSelectedBurger(product)}
+                  className="group cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] transition-shadow hover:shadow-lg active:scale-[0.98]"
+                >
+                  <div className="relative aspect-[4/3] sm:h-44 overflow-hidden">
+                    {product.imageUrl ? (
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[var(--bg-tertiary)]">
+                        <span className="text-4xl">🍔</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  </div>
+                  <div className="p-2.5 sm:p-4">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-1 sm:text-base">
+                      {product.name}
+                    </h3>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-[var(--text-muted)] line-clamp-1">
+                      {product.description}
+                    </p>
+                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between">
+                      <span className="text-sm font-extrabold text-[#FF6B35] sm:text-lg">
+                        {formatPrice(product.price)}
+                      </span>
+                      <span className="no-min-size flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35]/10 text-[#FF6B35] transition-colors group-hover:bg-[#FF6B35] group-hover:text-white">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ====== Reviews from real customers ====== */}
+      {reviews.length > 0 && (
+        <section className="bg-[var(--bg-primary)] py-10 sm:py-18">
+          <div className="mx-auto max-w-7xl px-4">
+            <motion.div
+              className="mb-6 sm:mb-10"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
+                Lo que dicen nuestros clientes
+              </h2>
+              <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
+                {totalReviews} resena{totalReviews !== 1 ? 's' : ''} reales de nuestros clientes
+              </p>
+            </motion.div>
+
+            {/* Horizontal scroll on mobile, grid on desktop */}
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:pb-0">
               {reviews.map((r, i) => (
                 <motion.div
                   key={r.id}
@@ -591,7 +749,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="flex flex-col gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 sm:p-6"
+                  className="flex min-w-[280px] sm:min-w-0 snap-start flex-col gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 sm:p-6"
                 >
                   <div className="flex gap-0.5">
                     {Array.from({ length: 5 }).map((_, si) => (
@@ -621,7 +779,7 @@ export default function HomePage() {
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B35] to-[#D62828] text-xs font-bold text-white">
+                      <div className="no-min-size flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B35] to-[#D62828] text-xs font-bold text-white">
                         {r.user.name.charAt(0).toUpperCase()}
                       </div>
                     )}

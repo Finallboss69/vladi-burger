@@ -841,13 +841,6 @@ export default function PedidoPage() {
                 <span>Programado: {formatDate(order.scheduledAt)}</span>
               </div>
             )}
-            {order.pointsEarned > 0 && (
-              <div className="mt-3 rounded-lg bg-[#F5CB5C]/10 px-3 py-2">
-                <p className="text-sm font-medium text-[#3E2723] dark:text-[#F5CB5C]">
-                  +{order.pointsEarned} puntos Vladi
-                </p>
-              </div>
-            )}
           </div>
 
           <Link href="/menu">

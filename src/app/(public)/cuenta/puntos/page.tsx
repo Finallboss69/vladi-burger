@@ -323,7 +323,7 @@ export default function PuntosPage() {
                   <h3 className="font-bold text-[var(--text-primary)] mb-3">Como funciona?</h3>
                   <div className="space-y-3">
                     {[
-                      { step: '1', text: 'Hace tu pedido de Vladi Burgers como siempre' },
+                      { step: '1', text: 'Hace tu pedido de burgers como siempre' },
                       { step: '2', text: `Junta ${required} sellos con cada compra` },
                       { step: '3', text: `Canjea tu premio: ${config.prizeName}` },
                       { step: '4', text: 'Usa el cupon en tu proximo pedido' },

@@ -170,7 +170,7 @@ export default function AdminCupones() {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Input
                       label="Código"
-                      placeholder="Ej: VLADI20"
+                      placeholder="Ej: DESCUENTO20"
                       value={form.code}
                       onChange={(e) => updateField('code', e.target.value)}
                       required

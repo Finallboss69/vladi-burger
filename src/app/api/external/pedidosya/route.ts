@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { RESTAURANT } from '@/lib/config'
 
 // ─── Tipos para el payload de PedidosYa ───
 
@@ -64,9 +65,9 @@ export async function POST(req: Request) {
 
     // Buscar o crear usuario "guest" para pedidos externos
     const guestUser = await prisma.user.upsert({
-      where: { email: 'external@vladiburger.com' },
+      where: { email: `external@${RESTAURANT.email.split('@')[1]}` },
       create: {
-        email: 'external@vladiburger.com',
+        email: `external@${RESTAURANT.email.split('@')[1]}`,
         name: 'Pedidos Externos',
         passwordHash: '', // Sin acceso por login
         role: 'CUSTOMER',

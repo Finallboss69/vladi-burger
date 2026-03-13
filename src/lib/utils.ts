@@ -11,7 +11,7 @@ export function formatPrice(price: number): string {
     currency: 'ARS',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(price);
+  }).format(price)
 }
 
 export function formatDate(date: string | Date): string {

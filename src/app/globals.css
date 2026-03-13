@@ -139,13 +139,21 @@
   outline-offset: 2px;
 }
 
+/* Safe area support for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Mobile improvements */
 @media (max-width: 640px) {
   body {
     font-size: 16px;
   }
 
-  button, a, [role="button"] {
+  /* Touch targets — exclude slider dots and tiny UI elements */
+  button:not(.slider-dot):not(.no-min-size),
+  a:not(.no-min-size),
+  [role="button"]:not(.no-min-size) {
     min-height: 44px;
     min-width: 44px;
   }
