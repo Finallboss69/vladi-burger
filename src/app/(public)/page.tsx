@@ -368,7 +368,7 @@ export default function HomePage() {
                     )}
                   />
 
-                  {/* Collapsed: vertical name + stock */}
+                  {/* Collapsed: rotated horizontal name */}
                   <AnimatePresence>
                     {!isActive && (
                       <motion.div
@@ -376,10 +376,10 @@ export default function HomePage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute inset-0 flex flex-col items-center justify-between py-2 sm:py-3"
+                        className="absolute inset-0 flex items-center justify-center"
                       >
-                        {/* Stock dot indicator at top */}
-                        <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                        {/* Stock dot at top */}
+                        <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
                           <div
                             className={cn(
                               'h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full',
@@ -392,18 +392,18 @@ export default function HomePage() {
                           />
                         </div>
 
-                        {/* Name + price at bottom */}
-                        <div className="flex flex-col items-center gap-1.5 sm:gap-2">
-                          <span
-                            className="text-[10px] sm:text-xs font-bold text-white/80 tracking-wider max-h-[180px] sm:max-h-[240px] overflow-hidden"
-                            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                          >
-                            {burger.name}
-                          </span>
-                          <span className="text-[9px] sm:text-[10px] font-bold text-[#FF6B35]">
-                            {formatPrice(burger.price)}
-                          </span>
-                        </div>
+                        {/* Big horizontal name rotated -90deg */}
+                        <span
+                          className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
+                          style={{ transform: 'rotate(-90deg)' }}
+                        >
+                          {burger.name}
+                        </span>
+
+                        {/* Price at bottom */}
+                        <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
+                          {formatPrice(burger.price)}
+                        </span>
                       </motion.div>
                     )}
                   </AnimatePresence>
