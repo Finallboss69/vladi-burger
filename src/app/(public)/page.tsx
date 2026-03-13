@@ -258,7 +258,7 @@ export default function HomePage() {
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    api.get('/products?limit=6').then((res) => {
+    api.get('/products?categorySlug=hamburguesas&limit=8').then((res) => {
       const burgers = res.data.data.filter((p: Product) => p.isActive);
       setAllBurgers(burgers);
       if (burgers.length > 0) {

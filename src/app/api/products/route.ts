@@ -5,6 +5,7 @@ import { getUserFromToken } from '@/lib/auth'
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const categoryId = url.searchParams.get('categoryId')
+  const categorySlug = url.searchParams.get('categorySlug')
   const search = url.searchParams.get('search')
   const slug = url.searchParams.get('slug')
   const active = url.searchParams.get('active')
@@ -23,6 +24,7 @@ export async function GET(req: Request) {
 
   const where: Record<string, unknown> = {}
   if (categoryId) where.categoryId = categoryId
+  if (categorySlug) where.category = { slug: categorySlug }
   if (active !== 'false') where.isActive = true
   if (search) {
     where.OR = [
