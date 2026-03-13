@@ -132,6 +132,7 @@ export default function CheckoutPage() {
     try {
       const res = await api.post('/orders', {
         items: items.map((i) => ({
+          productId: i.product?.id ?? null,
           name: i.name,
           price: i.price,
           quantity: i.quantity,
