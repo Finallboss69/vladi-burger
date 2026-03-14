@@ -23,13 +23,15 @@ export async function GET(req: NextRequest) {
       _count: true,
     })
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       data: {
         reviews,
         avgRating: Math.round((stats._avg.rating ?? 0) * 10) / 10,
         totalReviews: stats._count,
       },
     })
+    res.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300')
+    return res
   } catch (err) {
     console.error('Reviews GET error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

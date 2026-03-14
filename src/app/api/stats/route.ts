@@ -22,7 +22,7 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     data: {
       burgersSold: burgersSold._sum.quantity ?? 0,
       avgRating: avgRating._avg.rating ? Number(avgRating._avg.rating.toFixed(1)) : 0,
@@ -30,4 +30,6 @@ export async function GET() {
       totalOrders,
     },
   })
+  res.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+  return res
 }

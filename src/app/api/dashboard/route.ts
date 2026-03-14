@@ -14,73 +14,94 @@ export async function GET(req: Request) {
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [ordersToday, allOrders, activeCustomers, reviews] = await Promise.all([
-    prisma.order.findMany({
+  const [
+    todayAgg,
+    weekAgg,
+    monthAgg,
+    activeCustomers,
+    reviewsAgg,
+    popularProducts,
+    sourceCountsRaw,
+  ] = await Promise.all([
+    // Today's orders — aggregate count + sum in DB
+    prisma.order.aggregate({
       where: { createdAt: { gte: startOfDay } },
+      _count: true,
+      _sum: { total: true },
     }),
-    prisma.order.findMany({
+    // Week's orders
+    prisma.order.aggregate({
+      where: { createdAt: { gte: startOfWeek } },
+      _count: true,
+      _sum: { total: true },
+    }),
+    // Month's orders
+    prisma.order.aggregate({
       where: { createdAt: { gte: startOfMonth } },
-      include: { items: true },
+      _count: true,
+      _sum: { total: true },
     }),
+    // Active customers
     prisma.user.count({ where: { role: 'CUSTOMER' } }),
+    // Reviews avg
     prisma.orderReview.aggregate({ _avg: { rating: true } }),
+    // Popular products — groupBy in DB instead of loading all items
+    prisma.orderItem.groupBy({
+      by: ['name'],
+      where: { order: { createdAt: { gte: startOfMonth } } },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: 5,
+    }),
+    // Orders by source — groupBy in DB
+    prisma.order.groupBy({
+      by: ['source'],
+      where: { createdAt: { gte: startOfMonth } },
+      _count: true,
+    }),
   ])
 
-  const revenueToday = ordersToday.reduce((sum, o) => sum + o.total, 0)
-  const weekOrders = allOrders.filter((o) => new Date(o.createdAt) >= startOfWeek)
-  const revenueWeek = weekOrders.reduce((sum, o) => sum + o.total, 0)
-  const revenueMonth = allOrders.reduce((sum, o) => sum + o.total, 0)
+  // Revenue by day of week — 7 lightweight aggregate queries in parallel
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const revenueByDay = await Promise.all(
+    dayNames.map(async (day, i) => {
+      const dayStart = new Date(startOfWeek)
+      dayStart.setDate(dayStart.getDate() + i)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      const agg = await prisma.order.aggregate({
+        where: { createdAt: { gte: dayStart, lt: dayEnd } },
+        _sum: { total: true },
+      })
+      return { day, value: agg._sum.total ?? 0 }
+    }),
+  )
 
-  // Popular products
-  const productCounts: Record<string, number> = {}
-  for (const order of allOrders) {
-    for (const item of order.items) {
-      productCounts[item.name] = (productCounts[item.name] ?? 0) + item.quantity
-    }
-  }
-  const popularProducts = Object.entries(productCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
-  // Orders by source
-  const sourceCounts: Record<string, number> = {}
-  for (const order of allOrders) {
-    sourceCounts[order.source] = (sourceCounts[order.source] ?? 0) + 1
+  // Format source counts
+  const sourceMap: Record<string, number> = {}
+  for (const s of sourceCountsRaw) {
+    sourceMap[s.source] = s._count
   }
   const ordersBySource = [
-    { source: 'WEB', label: 'Web', count: sourceCounts['WEB'] ?? 0, color: '#FF6B35' },
-    { source: 'RAPPI', label: 'Rappi', count: sourceCounts['RAPPI'] ?? 0, color: '#D62828' },
-    { source: 'PEDIDOSYA', label: 'PedidosYa', count: sourceCounts['PEDIDOSYA'] ?? 0, color: '#F5CB5C' },
+    { source: 'WEB', label: 'Web', count: sourceMap['WEB'] ?? 0, color: '#FF6B35' },
+    { source: 'RAPPI', label: 'Rappi', count: sourceMap['RAPPI'] ?? 0, color: '#D62828' },
+    { source: 'PEDIDOSYA', label: 'PedidosYa', count: sourceMap['PEDIDOSYA'] ?? 0, color: '#F5CB5C' },
   ]
-
-  // Revenue by day of week (current week)
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-  const revenueByDay = dayNames.map((day, i) => {
-    const dayStart = new Date(startOfWeek)
-    dayStart.setDate(dayStart.getDate() + i)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-    const dayRevenue = weekOrders
-      .filter((o) => {
-        const d = new Date(o.createdAt)
-        return d >= dayStart && d < dayEnd
-      })
-      .reduce((sum, o) => sum + o.total, 0)
-    return { day, value: dayRevenue }
-  })
 
   return NextResponse.json({
     data: {
-      ordersToday: ordersToday.length,
-      ordersWeek: weekOrders.length,
-      ordersMonth: allOrders.length,
-      revenueToday,
-      revenueWeek,
-      revenueMonth,
-      avgRating: reviews._avg.rating ?? 0,
+      ordersToday: todayAgg._count,
+      ordersWeek: weekAgg._count,
+      ordersMonth: monthAgg._count,
+      revenueToday: todayAgg._sum.total ?? 0,
+      revenueWeek: weekAgg._sum.total ?? 0,
+      revenueMonth: monthAgg._sum.total ?? 0,
+      avgRating: reviewsAgg._avg.rating ?? 0,
       activeCustomers,
-      popularProducts,
+      popularProducts: popularProducts.map((p) => ({
+        name: p.name,
+        count: p._sum.quantity ?? 0,
+      })),
       ordersBySource,
       revenueByDay,
     },

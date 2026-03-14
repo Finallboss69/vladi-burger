@@ -130,56 +130,58 @@ export async function POST(req: Request) {
       },
     })
 
-    // Decrease stock
-    for (const item of items) {
-      if (item.productId) {
-        const product = await prisma.product.findUnique({ where: { id: item.productId } })
-        if (product && product.stock > 0) {
-          await prisma.product.update({
+    // Decrease stock — batch: fetch all products once, then update in parallel
+    const productIds = items
+      .map((item: { productId?: string }) => item.productId)
+      .filter((id: string | undefined): id is string => Boolean(id))
+
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds }, stock: { gt: 0 } },
+        select: { id: true, stock: true, categoryId: true },
+      })
+      const productMap = new Map(products.map((p) => [p.id, p]))
+
+      const stockUpdates = items
+        .filter((item: { productId?: string }) => item.productId && productMap.has(item.productId))
+        .map((item: { productId: string; quantity: number }) =>
+          prisma.product.update({
             where: { id: item.productId },
             data: { stock: { decrement: item.quantity } },
-          })
-        }
+          }),
+        )
+      if (stockUpdates.length > 0) {
+        await Promise.all(stockUpdates)
       }
-    }
 
-    // Award stamp card stamps for qualifying purchases
-    try {
-      const stampConfig = await prisma.stampConfig.findFirst({ where: { isActive: true } })
-      if (stampConfig) {
-        // Count qualifying items (matching category or all burgers if no category set)
-        let qualifyingCount = 0
-        for (const item of items) {
-          if (item.productId) {
-            const product = await prisma.product.findUnique({ where: { id: item.productId } })
-            if (product) {
-              const matches = stampConfig.categoryId
-                ? product.categoryId === stampConfig.categoryId
-                : true
-              if (matches) {
-                qualifyingCount += item.quantity
+      // Award stamp card stamps — use already-fetched products, no extra queries
+      try {
+        const stampConfig = await prisma.stampConfig.findFirst({ where: { isActive: true } })
+        if (stampConfig) {
+          let qualifyingCount = 0
+          for (const item of items) {
+            if (item.productId) {
+              const product = productMap.get(item.productId)
+              if (product) {
+                const matches = stampConfig.categoryId
+                  ? product.categoryId === stampConfig.categoryId
+                  : true
+                if (matches) qualifyingCount += item.quantity
               }
             }
           }
-        }
 
-        if (qualifyingCount > 0) {
-          await prisma.stampCard.upsert({
-            where: { userId: user.id },
-            create: {
-              userId: user.id,
-              stamps: qualifyingCount,
-              lastStampAt: new Date(),
-            },
-            update: {
-              stamps: { increment: qualifyingCount },
-              lastStampAt: new Date(),
-            },
-          })
+          if (qualifyingCount > 0) {
+            await prisma.stampCard.upsert({
+              where: { userId: user.id },
+              create: { userId: user.id, stamps: qualifyingCount, lastStampAt: new Date() },
+              update: { stamps: { increment: qualifyingCount }, lastStampAt: new Date() },
+            })
+          }
         }
+      } catch {
+        // Stamp card errors should not block order creation
       }
-    } catch {
-      // Stamp card errors should not block order creation
     }
 
     // Fire-and-forget order confirmation email

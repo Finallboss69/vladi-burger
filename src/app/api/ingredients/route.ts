@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
     where: all === 'true' ? {} : { isActive: true },
     orderBy: [{ type: 'asc' }, { name: 'asc' }],
   })
-  return NextResponse.json({ data: ingredients })
+  const res = NextResponse.json({ data: ingredients })
+  if (all !== 'true') {
+    res.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300')
+  }
+  return res
 }
 
 export async function POST(req: NextRequest) {

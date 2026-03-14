@@ -63,6 +63,9 @@ model Product {
   extras     ProductExtra[]
   comboItems ComboItem[]
   orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
 }
 
 model ProductExtra {
@@ -124,6 +127,12 @@ model Order {
   items            OrderItem[]
   review           OrderReview?
   deliveryLocation DeliveryLocation?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deliveryDriverId])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -140,6 +149,9 @@ model OrderItem {
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model OrderReview {
@@ -152,6 +164,9 @@ model OrderReview {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([rating])
 }
 
 // ─── Delivery Location Tracking ───
@@ -183,6 +198,8 @@ model Address {
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
+
+  @@index([userId])
 }
 
 // ─── Coupons ───
@@ -261,6 +278,8 @@ model BlogPost {
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, createdAt])
 }
 
 // ─── Community ───
@@ -277,6 +296,8 @@ model BurgerCreation {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model CustomerPhoto {
@@ -290,6 +311,9 @@ model CustomerPhoto {
 
   user      User        @relation(fields: [userId], references: [id])
   photoLikes PhotoLike[]
+
+  @@index([userId])
+  @@index([isApproved, createdAt])
 }
 
 model PhotoLike {

@@ -358,141 +358,134 @@ export default function HomePage() {
                   )}
 
                   {/* Overlay */}
-                  <div
-                    className={cn(
-                      'absolute inset-0 transition-all duration-500',
-                      isActive
-                        ? 'bg-gradient-to-r from-black/75 via-black/30 to-black/10'
-                        : 'bg-gradient-to-t from-black/70 via-black/40 to-black/25',
-                    )}
+                  <motion.div
+                    className="absolute inset-0"
+                    animate={{
+                      background: isActive
+                        ? 'linear-gradient(to right, rgba(0,0,0,0.75), rgba(0,0,0,0.3), rgba(0,0,0,0.1))'
+                        : 'linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.4), rgba(0,0,0,0.25))',
+                    }}
+                    transition={{ duration: 0.5 }}
                   />
 
                   {/* Collapsed: rotated horizontal name */}
-                  <AnimatePresence>
-                    {!isActive && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        {/* Stock dot at top */}
-                        <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
-                          <div
-                            className={cn(
-                              'h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full',
-                              burger.stock === 0
-                                ? 'bg-red-500'
-                                : burger.stock > 0 && burger.stock < 5
-                                  ? 'bg-amber-400 animate-pulse'
-                                  : 'bg-emerald-400',
-                            )}
-                          />
-                        </div>
+                  <motion.div
+                    animate={{ opacity: isActive ? 0 : 1 }}
+                    transition={{ duration: 0.25 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ pointerEvents: isActive ? 'none' : 'auto' }}
+                  >
+                    {/* Stock dot at top */}
+                    <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
+                      <div
+                        className={cn(
+                          'h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full',
+                          burger.stock === 0
+                            ? 'bg-red-500'
+                            : burger.stock > 0 && burger.stock < 5
+                              ? 'bg-amber-400 animate-pulse'
+                              : 'bg-emerald-400',
+                        )}
+                      />
+                    </div>
 
-                        {/* Big horizontal name rotated -90deg */}
-                        <span
-                          className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
-                          style={{ transform: 'rotate(-90deg)' }}
-                        >
-                          {burger.name}
-                        </span>
+                    {/* Big horizontal name rotated -90deg */}
+                    <span
+                      className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
+                      style={{ transform: 'rotate(-90deg)' }}
+                    >
+                      {burger.name}
+                    </span>
 
-                        {/* Price at bottom */}
-                        <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
-                          {formatPrice(burger.price)}
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                    {/* Price at bottom */}
+                    <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
+                      {formatPrice(burger.price)}
+                    </span>
+                  </motion.div>
 
                   {/* Expanded: full banner */}
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.4, delay: 0.1 }}
-                        className="absolute inset-0 flex flex-col justify-end p-3 sm:p-6 lg:p-8"
-                      >
-                        {/* Tags + Stock */}
-                        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
-                          {burger.category && (
-                            <span className="rounded-md bg-[#FF6B35]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-                              {burger.category.name}
-                            </span>
-                          )}
-                          {/* Stock indicator */}
-                          {burger.stock === 0 ? (
-                            <span className="flex items-center gap-1 rounded-md bg-red-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-                              <Package className="h-3 w-3" /> Agotado
-                            </span>
-                          ) : burger.stock > 0 && burger.stock < 5 ? (
-                            <span className="flex items-center gap-1 rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white animate-pulse">
-                              <Package className="h-3 w-3" /> Ultimas {burger.stock}!
-                            </span>
-                          ) : burger.stock > 0 ? (
-                            <span className="flex items-center gap-1 rounded-md bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-                              <Package className="h-3 w-3" /> Stock: {burger.stock}
-                            </span>
-                          ) : null}
-                        </div>
+                  <motion.div
+                    animate={{ opacity: isActive ? 1 : 0 }}
+                    transition={{ duration: 0.35, delay: isActive ? 0.15 : 0 }}
+                    className="absolute inset-0 flex flex-col justify-end p-3 sm:p-6 lg:p-8"
+                    style={{ pointerEvents: isActive ? 'auto' : 'none' }}
+                  >
+                    {/* Tags + Stock */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+                      {burger.category && (
+                        <span className="rounded-md bg-[#FF6B35]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                          {burger.category.name}
+                        </span>
+                      )}
+                      {/* Stock indicator */}
+                      {burger.stock === 0 ? (
+                        <span className="flex items-center gap-1 rounded-md bg-red-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                          <Package className="h-3 w-3" /> Agotado
+                        </span>
+                      ) : burger.stock > 0 && burger.stock < 5 ? (
+                        <span className="flex items-center gap-1 rounded-md bg-[#D62828]/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white animate-pulse">
+                          <Package className="h-3 w-3" /> Ultimas {burger.stock}!
+                        </span>
+                      ) : burger.stock > 0 ? (
+                        <span className="flex items-center gap-1 rounded-md bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                          <Package className="h-3 w-3" /> Stock: {burger.stock}
+                        </span>
+                      ) : null}
+                    </div>
 
-                        {/* Name */}
-                        <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
-                          {burger.name}
-                        </h1>
+                    {/* Name */}
+                    <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
+                      {burger.name}
+                    </h1>
 
-                        {/* Description */}
-                        <p className="mt-2 text-xs sm:text-sm lg:text-base text-white/60 leading-relaxed line-clamp-2 sm:line-clamp-3 max-w-lg">
-                          {burger.description}
-                        </p>
+                    {/* Description */}
+                    <p className="mt-2 text-xs sm:text-sm lg:text-base text-white/60 leading-relaxed line-clamp-2 sm:line-clamp-3 max-w-lg">
+                      {burger.description}
+                    </p>
 
-                        {/* Extras */}
-                        {burger.extras.length > 0 && (
-                          <div className="mt-2.5 hidden sm:flex flex-wrap gap-1.5">
-                            {burger.extras.map((extra) => (
-                              <span
-                                key={extra.id}
-                                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/50 backdrop-blur-sm"
-                              >
-                                + {extra.name} {formatPrice(extra.price)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Price + CTA */}
-                        <div className="mt-4 flex items-center gap-3 sm:gap-4">
-                          <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#FF6B35]">
-                            {formatPrice(burger.price)}
-                          </span>
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedBurger(burger);
-                            }}
-                            className="flex h-10 sm:h-11 items-center gap-2 rounded-xl bg-[#FF6B35] px-4 sm:px-6 text-xs sm:text-sm font-bold text-white cursor-pointer transition-colors hover:bg-[#e55e2e] shadow-lg shadow-[#FF6B35]/25"
+                    {/* Extras */}
+                    {burger.extras.length > 0 && (
+                      <div className="mt-2.5 hidden sm:flex flex-wrap gap-1.5">
+                        {burger.extras.map((extra) => (
+                          <span
+                            key={extra.id}
+                            className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/50 backdrop-blur-sm"
                           >
-                            <ShoppingCart className="h-4 w-4" />
-                            Pedir ahora
-                          </motion.button>
-                        </div>
-                      </motion.div>
+                            + {extra.name} {formatPrice(extra.price)}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                  </AnimatePresence>
+
+                    {/* Price + CTA */}
+                    <div className="mt-4 flex items-center gap-3 sm:gap-4">
+                      <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#FF6B35]">
+                        {formatPrice(burger.price)}
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBurger(burger);
+                        }}
+                        className="flex h-10 sm:h-11 items-center gap-2 rounded-xl bg-[#FF6B35] px-4 sm:px-6 text-xs sm:text-sm font-bold text-white cursor-pointer transition-colors hover:bg-[#e55e2e] shadow-lg shadow-[#FF6B35]/25"
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        Pedir ahora
+                      </motion.button>
+                    </div>
+                  </motion.div>
 
                   {/* Counter badge on active */}
-                  {isActive && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-0.5 backdrop-blur-sm">
-                      <span className="text-[10px] font-bold text-[#FF6B35]">{i + 1}</span>
-                      <span className="text-[9px] text-white/30">/</span>
-                      <span className="text-[10px] text-white/40">{totalSlides}</span>
-                    </div>
-                  )}
+                  <motion.div
+                    animate={{ opacity: isActive ? 1 : 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-0.5 backdrop-blur-sm"
+                  >
+                    <span className="text-[10px] font-bold text-[#FF6B35]">{i + 1}</span>
+                    <span className="text-[9px] text-white/30">/</span>
+                    <span className="text-[10px] text-white/40">{totalSlides}</span>
+                  </motion.div>
                 </motion.div>
               );
             })}
@@ -521,126 +514,95 @@ export default function HomePage() {
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,_rgba(214,40,40,0.04)_0%,transparent_50%)]" />
 
                 {/* Collapsed state */}
-                <AnimatePresence>
-                  {activeIndex !== creaTuVladyIndex && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
-                        <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-[#FF6B35] animate-pulse" />
-                      </div>
-                      <span
-                        className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
-                        style={{ transform: 'rotate(-90deg)' }}
-                      >
-                        CREA TU VLADY
-                      </span>
-                      <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
-                        CUSTOM
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <motion.div
+                  animate={{ opacity: activeIndex === creaTuVladyIndex ? 0 : 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ pointerEvents: activeIndex === creaTuVladyIndex ? 'none' : 'auto' }}
+                >
+                  <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
+                    <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-[#FF6B35] animate-pulse" />
+                  </div>
+                  <span
+                    className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
+                    style={{ transform: 'rotate(-90deg)' }}
+                  >
+                    CREA TU VLADY
+                  </span>
+                  <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
+                    CUSTOM
+                  </span>
+                </motion.div>
 
                 {/* Expanded state */}
-                <AnimatePresence>
-                  {activeIndex === creaTuVladyIndex && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 }}
-                      className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12"
-                    >
-                      <div className="max-w-xl">
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 }}
-                          className="flex items-center gap-2 mb-3"
-                        >
-                          <span className="rounded-md bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] border border-[#FF6B35]/20">
-                            Personalizada
-                          </span>
-                        </motion.div>
+                <motion.div
+                  animate={{ opacity: activeIndex === creaTuVladyIndex ? 1 : 0 }}
+                  transition={{ duration: 0.35, delay: activeIndex === creaTuVladyIndex ? 0.15 : 0 }}
+                  className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12"
+                  style={{ pointerEvents: activeIndex === creaTuVladyIndex ? 'auto' : 'none' }}
+                >
+                  <div className="max-w-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="rounded-md bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] border border-[#FF6B35]/20">
+                        Personalizada
+                      </span>
+                    </div>
 
-                        <motion.h1
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.25 }}
-                          className="text-3xl sm:text-4xl lg:text-6xl font-black text-white leading-[1] tracking-tight"
-                        >
-                          CREA TU
-                          <br />
-                          <span className="text-[#FF6B35]">VLADY</span>
-                        </motion.h1>
+                    <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black text-white leading-[1] tracking-tight">
+                      CREA TU
+                      <br />
+                      <span className="text-[#FF6B35]">VLADY</span>
+                    </h1>
 
-                        <motion.p
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.35 }}
-                          className="mt-3 text-sm sm:text-base text-white/50 leading-relaxed max-w-md"
-                        >
-                          Arma tu hamburguesa a tu gusto. Elegí el pan, la carne, los quesos, las salsas y todos los toppings que quieras.
-                        </motion.p>
+                    <p className="mt-3 text-sm sm:text-base text-white/50 leading-relaxed max-w-md">
+                      Arma tu hamburguesa a tu gusto. Elegí el pan, la carne, los quesos, las salsas y todos los toppings que quieras.
+                    </p>
 
-                        {/* Ingredient preview pills */}
-                        {builderIngredients.length > 0 && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.45 }}
-                            className="mt-4 hidden sm:flex flex-wrap gap-1.5"
-                          >
-                            {['BUN', 'MEAT', 'CHEESE', 'SAUCE', 'TOPPING'].map((type) => {
-                              const count = builderIngredients.filter((i) => i.type === type).length;
-                              if (count === 0) return null;
-                              const labels: Record<string, string> = { BUN: 'Panes', MEAT: 'Carnes', CHEESE: 'Quesos', SAUCE: 'Salsas', TOPPING: 'Toppings' };
-                              return (
-                                <span
-                                  key={type}
-                                  className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[11px] font-medium text-white/40"
-                                >
-                                  {count} {labels[type] ?? type}
-                                </span>
-                              );
-                            })}
-                          </motion.div>
-                        )}
-
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.5 }}
-                          className="mt-5 sm:mt-6"
-                        >
-                          <Link href="/arma-tu-burger">
-                            <motion.button
-                              whileHover={{ scale: 1.03 }}
-                              whileTap={{ scale: 0.97 }}
-                              className="flex h-11 sm:h-12 items-center gap-2.5 rounded-xl bg-white px-6 sm:px-8 text-sm sm:text-base font-bold text-black cursor-pointer transition-all hover:bg-white/90 shadow-xl shadow-white/10"
+                    {/* Ingredient preview pills */}
+                    {builderIngredients.length > 0 && (
+                      <div className="mt-4 hidden sm:flex flex-wrap gap-1.5">
+                        {['BUN', 'MEAT', 'CHEESE', 'SAUCE', 'TOPPING'].map((type) => {
+                          const count = builderIngredients.filter((ing) => ing.type === type).length;
+                          if (count === 0) return null;
+                          const labels: Record<string, string> = { BUN: 'Panes', MEAT: 'Carnes', CHEESE: 'Quesos', SAUCE: 'Salsas', TOPPING: 'Toppings' };
+                          return (
+                            <span
+                              key={type}
+                              className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[11px] font-medium text-white/40"
                             >
-                              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-[#FF6B35]" />
-                              Empezar a crear
-                              <ArrowRight className="h-4 w-4" />
-                            </motion.button>
-                          </Link>
-                        </motion.div>
+                              {count} {labels[type] ?? type}
+                            </span>
+                          );
+                        })}
                       </div>
+                    )}
 
-                      {/* Counter badge */}
-                      <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 backdrop-blur-sm">
-                        <span className="text-[10px] font-bold text-[#FF6B35]">{totalSlides}</span>
-                        <span className="text-[9px] text-white/30">/</span>
-                        <span className="text-[10px] text-white/40">{totalSlides}</span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    <div className="mt-5 sm:mt-6">
+                      <Link href="/arma-tu-burger">
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="flex h-11 sm:h-12 items-center gap-2.5 rounded-xl bg-white px-6 sm:px-8 text-sm sm:text-base font-bold text-black cursor-pointer transition-all hover:bg-white/90 shadow-xl shadow-white/10"
+                        >
+                          <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-[#FF6B35]" />
+                          Empezar a crear
+                          <ArrowRight className="h-4 w-4" />
+                        </motion.button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Counter badge */}
+                  <motion.div
+                    animate={{ opacity: activeIndex === creaTuVladyIndex ? 1 : 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 backdrop-blur-sm"
+                  >
+                    <span className="text-[10px] font-bold text-[#FF6B35]">{totalSlides}</span>
+                    <span className="text-[9px] text-white/30">/</span>
+                    <span className="text-[10px] text-white/40">{totalSlides}</span>
+                  </motion.div>
+                </motion.div>
               </motion.div>
             )}
           </div>

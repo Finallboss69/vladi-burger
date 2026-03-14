@@ -13,7 +13,9 @@ export async function GET() {
     productCount: _count.products,
   }))
 
-  return NextResponse.json({ data })
+  const res = NextResponse.json({ data })
+  res.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300')
+  return res
 }
 
 export async function POST(req: Request) {
