@@ -10,7 +10,7 @@ export const useThemeStore = create<ThemeState>()(
   devtools(
     persist(
       (set) => ({
-        isDark: false,
+        isDark: true,
         toggleTheme: () => set((state) => ({ isDark: !state.isDark }), false, 'toggleTheme'),
       }),
       { name: 'vladi-theme' },
