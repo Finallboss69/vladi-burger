@@ -28,8 +28,8 @@ export async function GET(req: Request) {
   if (active !== 'false') where.isActive = true
   if (search) {
     where.OR = [
-      { name: { contains: search } },
-      { description: { contains: search } },
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
     ]
   }
 
