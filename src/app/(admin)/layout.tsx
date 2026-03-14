@@ -22,6 +22,7 @@ import {
   Navigation,
   Camera,
   FileText,
+  Salad,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navItems = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: ClipboardList },
   { href: '/admin/productos', label: 'Productos', icon: UtensilsCrossed },
   { href: '/admin/categorias', label: 'Categorías', icon: Layers },
+  { href: '/admin/ingredientes', label: 'Ingredientes', icon: Salad },
   { href: '/admin/cupones', label: 'Cupones', icon: Ticket },
   { href: '/admin/sellos', label: 'Sellos', icon: Stamp },
   { href: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
-  ArrowRight, Flame, Star, Users, Timer,
+  ArrowRight, Flame, Star, Users, Timer, Sparkles,
   ShoppingCart, Minus, Plus, Check, X, Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -254,8 +254,7 @@ export default function HomePage() {
   const [avgRating, setAvgRating] = useState('4.8');
   const [totalReviews, setTotalReviews] = useState(0);
   const [stats, setStats] = useState<StatsData | null>(null);
-  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
-  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [builderIngredients, setBuilderIngredients] = useState<{ id: string; name: string; type: string; price: number; imageUrl: string | null }[]>([]);
 
   useEffect(() => {
     api.get('/products?categorySlug=hamburguesas&limit=8').then((res) => {
@@ -266,11 +265,8 @@ export default function HomePage() {
       }
     }).catch(() => {});
 
-    api.get('/products?limit=8').then((res) => {
-      const products = res.data.data.filter((p: Product) => p.isActive);
-      // Show different products in each section
-      setPopularProducts(products.slice(0, 4));
-      setRecommendedProducts(products.slice(4, 8));
+    api.get('/ingredients').then((res) => {
+      setBuilderIngredients(res.data.data ?? []);
     }).catch(() => {});
 
     api.get('/stats').then((res) => {
@@ -294,15 +290,18 @@ export default function HomePage() {
   });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 60]);
 
+  // Total slides = burgers + 1 "CREA TU VLADY" card at the end
+  const totalSlides = allBurgers.length + 1;
+  const creaTuVladyIndex = allBurgers.length;
+
   // Auto-cycle
   useEffect(() => {
     if (!isAutoPlaying || selectedBurger || allBurgers.length === 0) return;
-    const len = allBurgers.length;
     const timer = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % len);
+      setActiveIndex((prev) => (prev + 1) % totalSlides);
     }, 4000);
     return () => clearInterval(timer);
-  }, [isAutoPlaying, selectedBurger, allBurgers.length]);
+  }, [isAutoPlaying, selectedBurger, totalSlides]);
 
   return (
     <div className="flex flex-col">
@@ -324,7 +323,6 @@ export default function HomePage() {
           <div className="flex gap-1 sm:gap-2 h-[360px] sm:h-[460px] lg:h-[500px]">
             {activeIndex >= 0 && allBurgers.map((burger, i) => {
               const isActive = i === activeIndex;
-              const burgerLowStock = burger.stock > 0 && burger.stock < 5;
 
               return (
                 <motion.div
@@ -491,28 +489,176 @@ export default function HomePage() {
                     <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-0.5 backdrop-blur-sm">
                       <span className="text-[10px] font-bold text-[#FF6B35]">{i + 1}</span>
                       <span className="text-[9px] text-white/30">/</span>
-                      <span className="text-[10px] text-white/40">{allBurgers.length}</span>
+                      <span className="text-[10px] text-white/40">{totalSlides}</span>
                     </div>
                   )}
                 </motion.div>
               );
             })}
+
+            {/* ===== CREA TU VLADY — Last Slide ===== */}
+            {activeIndex >= 0 && (
+              <motion.div
+                onClick={() => setActiveIndex(creaTuVladyIndex)}
+                className={cn(
+                  'relative cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl transition-shadow duration-500',
+                  activeIndex === creaTuVladyIndex
+                    ? 'shadow-2xl shadow-white/10'
+                    : 'shadow-md hover:shadow-lg',
+                )}
+                animate={{
+                  flex: activeIndex === creaTuVladyIndex ? 5 : 0.6,
+                }}
+                transition={{
+                  flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                }}
+              >
+                {/* Black background with subtle pattern */}
+                <div className="absolute inset-0 bg-black" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,_rgba(255,107,53,0.06)_0%,transparent_60%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,_rgba(214,40,40,0.04)_0%,transparent_50%)]" />
+
+                {/* Collapsed state */}
+                <AnimatePresence>
+                  {activeIndex !== creaTuVladyIndex && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2">
+                        <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-[#FF6B35] animate-pulse" />
+                      </div>
+                      <span
+                        className="text-base sm:text-lg lg:text-xl font-extrabold uppercase tracking-[0.15em] text-white/90 whitespace-nowrap drop-shadow-md"
+                        style={{ transform: 'rotate(-90deg)' }}
+                      >
+                        CREA TU VLADY
+                      </span>
+                      <span className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-extrabold text-[#FF6B35] whitespace-nowrap">
+                        CUSTOM
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Expanded state */}
+                <AnimatePresence>
+                  {activeIndex === creaTuVladyIndex && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4, delay: 0.1 }}
+                      className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12"
+                    >
+                      <div className="max-w-xl">
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2 }}
+                          className="flex items-center gap-2 mb-3"
+                        >
+                          <span className="rounded-md bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] border border-[#FF6B35]/20">
+                            Personalizada
+                          </span>
+                        </motion.div>
+
+                        <motion.h1
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.25 }}
+                          className="text-3xl sm:text-4xl lg:text-6xl font-black text-white leading-[1] tracking-tight"
+                        >
+                          CREA TU
+                          <br />
+                          <span className="text-[#FF6B35]">VLADY</span>
+                        </motion.h1>
+
+                        <motion.p
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.35 }}
+                          className="mt-3 text-sm sm:text-base text-white/50 leading-relaxed max-w-md"
+                        >
+                          Arma tu hamburguesa a tu gusto. Elegí el pan, la carne, los quesos, las salsas y todos los toppings que quieras.
+                        </motion.p>
+
+                        {/* Ingredient preview pills */}
+                        {builderIngredients.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.45 }}
+                            className="mt-4 hidden sm:flex flex-wrap gap-1.5"
+                          >
+                            {['BUN', 'MEAT', 'CHEESE', 'SAUCE', 'TOPPING'].map((type) => {
+                              const count = builderIngredients.filter((i) => i.type === type).length;
+                              if (count === 0) return null;
+                              const labels: Record<string, string> = { BUN: 'Panes', MEAT: 'Carnes', CHEESE: 'Quesos', SAUCE: 'Salsas', TOPPING: 'Toppings' };
+                              return (
+                                <span
+                                  key={type}
+                                  className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[11px] font-medium text-white/40"
+                                >
+                                  {count} {labels[type] ?? type}
+                                </span>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5 }}
+                          className="mt-5 sm:mt-6"
+                        >
+                          <Link href="/arma-tu-burger">
+                            <motion.button
+                              whileHover={{ scale: 1.03 }}
+                              whileTap={{ scale: 0.97 }}
+                              className="flex h-11 sm:h-12 items-center gap-2.5 rounded-xl bg-white px-6 sm:px-8 text-sm sm:text-base font-bold text-black cursor-pointer transition-all hover:bg-white/90 shadow-xl shadow-white/10"
+                            >
+                              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-[#FF6B35]" />
+                              Empezar a crear
+                              <ArrowRight className="h-4 w-4" />
+                            </motion.button>
+                          </Link>
+                        </motion.div>
+                      </div>
+
+                      {/* Counter badge */}
+                      <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 backdrop-blur-sm">
+                        <span className="text-[10px] font-bold text-[#FF6B35]">{totalSlides}</span>
+                        <span className="text-[9px] text-white/30">/</span>
+                        <span className="text-[10px] text-white/40">{totalSlides}</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
           </div>
 
           {/* Bottom bar: dots + CTAs */}
           <div className="mt-4 sm:mt-5 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-1.5">
-              {allBurgers.map((b, i) => (
+              {Array.from({ length: totalSlides }).map((_, i) => (
                 <button
-                  key={b.id}
+                  key={i}
                   onClick={() => setActiveIndex(i)}
                   className={cn(
                     'slider-dot rounded-full transition-all duration-400 cursor-pointer',
                     i === activeIndex
-                      ? 'h-2 sm:h-1.5 w-7 sm:w-6 bg-[#FF6B35] shadow-sm shadow-[#FF6B35]/40'
+                      ? i === creaTuVladyIndex
+                        ? 'h-2 sm:h-1.5 w-7 sm:w-6 bg-white shadow-sm shadow-white/40'
+                        : 'h-2 sm:h-1.5 w-7 sm:w-6 bg-[#FF6B35] shadow-sm shadow-[#FF6B35]/40'
                       : 'h-2 sm:h-1.5 w-2 sm:w-1.5 bg-white/20 hover:bg-white/40',
                   )}
-                  aria-label={b.name}
+                  aria-label={i === creaTuVladyIndex ? 'Crea tu Vlady' : allBurgers[i]?.name}
                 />
               ))}
             </div>
@@ -571,156 +717,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ====== Most Ordered ====== */}
-      {popularProducts.length > 0 && (
-        <section className="bg-[var(--bg-secondary)] py-10 sm:py-18">
-          <div className="mx-auto max-w-7xl px-4">
-            <motion.div
-              className="mb-6 sm:mb-10 flex items-end justify-between"
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div>
-                <h2 className="text-xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
-                  Los mas pedidos
-                </h2>
-                <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
-                  Los favoritos de nuestros clientes
-                </p>
-              </div>
-              <Link href="/menu">
-                <Button variant="ghost" size="sm" icon={<ArrowRight className="h-4 w-4" />}>
-                  Ver todo
-                </Button>
-              </Link>
-            </motion.div>
-
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4">
-              {popularProducts.map((product, i) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  onClick={() => setSelectedBurger(product)}
-                  className="group cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] transition-shadow hover:shadow-lg active:scale-[0.98]"
-                >
-                  <div className="relative aspect-[4/3] sm:h-44 overflow-hidden">
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 640px) 50vw, 25vw"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[var(--bg-tertiary)]">
-                        <span className="text-4xl">🍔</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                  </div>
-                  <div className="p-2.5 sm:p-4">
-                    <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-1 sm:text-base">
-                      {product.name}
-                    </h3>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-[var(--text-muted)] line-clamp-1">
-                      {product.description}
-                    </p>
-                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between">
-                      <span className="text-sm font-extrabold text-[#FF6B35] sm:text-lg">
-                        {formatPrice(product.price)}
-                      </span>
-                      <span className="no-min-size flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35]/10 text-[#FF6B35] transition-colors group-hover:bg-[#FF6B35] group-hover:text-white">
-                        <ShoppingCart className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ====== Recommended ====== */}
-      {recommendedProducts.length > 0 && (
-        <section className="bg-[var(--bg-primary)] py-10 sm:py-18">
-          <div className="mx-auto max-w-7xl px-4">
-            <motion.div
-              className="mb-6 sm:mb-10 flex items-end justify-between"
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div>
-                <h2 className="text-xl font-extrabold text-[var(--text-primary)] sm:text-3xl">
-                  Te recomendamos
-                </h2>
-                <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
-                  Descubri nuevos sabores
-                </p>
-              </div>
-              <Link href="/menu">
-                <Button variant="ghost" size="sm" icon={<Flame className="h-4 w-4" />}>
-                  Ver mas
-                </Button>
-              </Link>
-            </motion.div>
-
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4">
-              {recommendedProducts.map((product, i) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  onClick={() => setSelectedBurger(product)}
-                  className="group cursor-pointer overflow-hidden rounded-xl sm:rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] transition-shadow hover:shadow-lg active:scale-[0.98]"
-                >
-                  <div className="relative aspect-[4/3] sm:h-44 overflow-hidden">
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 640px) 50vw, 25vw"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[var(--bg-tertiary)]">
-                        <span className="text-4xl">🍔</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                  </div>
-                  <div className="p-2.5 sm:p-4">
-                    <h3 className="text-sm font-bold text-[var(--text-primary)] line-clamp-1 sm:text-base">
-                      {product.name}
-                    </h3>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-[var(--text-muted)] line-clamp-1">
-                      {product.description}
-                    </p>
-                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between">
-                      <span className="text-sm font-extrabold text-[#FF6B35] sm:text-lg">
-                        {formatPrice(product.price)}
-                      </span>
-                      <span className="no-min-size flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35]/10 text-[#FF6B35] transition-colors group-hover:bg-[#FF6B35] group-hover:text-white">
-                        <ShoppingCart className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ====== Reviews from real customers ====== */}
       {reviews.length > 0 && (
