@@ -334,11 +334,12 @@ export default function HomePage() {
                       ? 'shadow-2xl shadow-[#FF6B35]/10'
                       : 'shadow-md hover:shadow-lg',
                   )}
+                  style={{ flexBasis: 0, flexShrink: 0, minWidth: 0 }}
                   animate={{
-                    flex: isActive ? 5 : 0.6,
+                    flexGrow: isActive ? 5 : 0.6,
                   }}
                   transition={{
-                    flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                    flexGrow: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
                   }}
                 >
                   {/* Image */}
@@ -506,11 +507,12 @@ export default function HomePage() {
                     ? 'shadow-2xl shadow-white/10'
                     : 'shadow-md hover:shadow-lg',
                 )}
+                style={{ flexBasis: 0, flexShrink: 0, minWidth: 0 }}
                 animate={{
-                  flex: activeIndex === creaTuVladyIndex ? 5 : 0.6,
+                  flexGrow: activeIndex === creaTuVladyIndex ? 5 : 0.6,
                 }}
                 transition={{
-                  flex: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                  flexGrow: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
                 }}
               >
                 {/* Black background with subtle pattern */}
