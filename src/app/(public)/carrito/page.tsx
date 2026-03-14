@@ -347,6 +347,16 @@ export default function CarritoPage() {
                 </motion.div>
               )}
 
+              {couponCode && total <= 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="rounded-lg bg-[#D62828]/10 p-3 text-xs text-[#D62828]"
+                >
+                  Para usar tu cupon tenes que pedir al menos una hamburguesa. El cupon te da la otra gratis!
+                </motion.div>
+              )}
+
               <div className="border-t border-[var(--border-color)] pt-3">
                 <div className="flex justify-between text-lg font-bold text-[var(--text-primary)]">
                   <span>Total</span>
@@ -362,8 +372,13 @@ export default function CarritoPage() {
               </div>
             </div>
 
-            <Link href="/checkout" className="mt-6 block">
-              <Button size="lg" className="w-full" icon={<ArrowRight className="h-5 w-5" />}>
+            <Link href={couponCode && total <= 0 ? '#' : '/checkout'} className="mt-6 block">
+              <Button
+                size="lg"
+                className="w-full"
+                icon={<ArrowRight className="h-5 w-5" />}
+                disabled={!!(couponCode && total <= 0)}
+              >
                 Ir al checkout
               </Button>
             </Link>

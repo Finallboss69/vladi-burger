@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import {
   User, Mail, Phone, ShoppingBag,
-  MapPin, Gift, LogOut, Edit3, Check, X, Stamp,
+  MapPin, Gift, LogOut, Edit3, Check, X,
 } from 'lucide-react';
 import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -17,7 +18,7 @@ import api from '@/lib/api';
 const quickLinks = [
   { href: '/cuenta/pedidos', icon: ShoppingBag, label: 'Mis Pedidos', desc: 'Historial y reorden' },
   { href: '/cuenta/direcciones', icon: MapPin, label: 'Direcciones', desc: 'Gestionar direcciones' },
-  { href: '/cuenta/puntos', icon: Gift, label: 'Tarjeta de Sellos', desc: 'Junta sellos y gana premios' },
+  { href: '/cuenta/puntos', icon: Gift, label: 'Tarjeta de Vladis', desc: 'Junta Vladis y gana premios' },
 ];
 
 const container = {
@@ -131,12 +132,14 @@ export default function CuentaPage() {
         {/* Profile card */}
         <motion.div variants={item}>
           <Card hover={false} className="overflow-hidden">
-            {/* Stamp card banner */}
+            {/* Vladis banner */}
             <div className="flex items-center justify-between px-6 py-3 bg-[#FF6B35]/10">
               <div className="flex items-center gap-2">
-                <Stamp className="h-5 w-5 text-[#FF6B35]" />
+                <div className="relative h-5 w-5 shrink-0">
+                  <Image src="/logo.png" alt="Vladi" fill className="object-contain" sizes="20px" />
+                </div>
                 <span className="text-sm font-bold text-[#FF6B35]">
-                  {currentStamps}/{requiredStamps} sellos
+                  {currentStamps}/{requiredStamps} Vladis
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -239,23 +242,23 @@ export default function CuentaPage() {
           </Card>
         </motion.div>
 
-        {/* Stamp card progress */}
+        {/* Vladis card progress */}
         <motion.div variants={item}>
           <Card hover={false} className="p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-[var(--text-primary)]">Tarjeta de Sellos</h3>
+              <h3 className="font-semibold text-[var(--text-primary)]">Tarjeta de Vladis</h3>
               {canRedeem ? (
                 <Badge variant="success" size="sm">
                   Premio disponible!
                 </Badge>
               ) : (
                 <Badge variant="info" size="sm">
-                  {currentStamps}/{requiredStamps} sellos
+                  {currentStamps}/{requiredStamps} Vladis
                 </Badge>
               )}
             </div>
 
-            {/* Stamp grid */}
+            {/* Vladis grid */}
             {!stampLoading && stampData?.config && (
               <div className="mb-4 flex flex-wrap gap-2 justify-center">
                 {Array.from({ length: requiredStamps }).map((_, i) => {
@@ -266,17 +269,28 @@ export default function CuentaPage() {
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${
+                      className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${
                         isFilled
-                          ? 'border-[#FF6B35] bg-[#FF6B35] text-white'
-                          : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+                          ? 'border-[#FF6B35] bg-[#FF6B35]/10'
+                          : 'border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)]'
                       }`}
                     >
-                      {isFilled ? (
-                        <Stamp className="h-4 w-4" />
-                      ) : (
-                        <span className="text-xs font-medium">{i + 1}</span>
-                      )}
+                      <motion.div
+                        className="relative h-7 w-7"
+                        initial={isFilled ? { scale: 0, rotate: -20 } : {}}
+                        animate={isFilled ? { scale: 1, rotate: 0 } : {}}
+                        transition={isFilled ? { delay: 0.1 + i * 0.04 + 0.1, type: 'spring', stiffness: 400, damping: 15 } : {}}
+                      >
+                        <Image
+                          src="/logo.png"
+                          alt={isFilled ? 'Vladi completado' : `Vladi ${i + 1}`}
+                          fill
+                          className={`object-contain transition-all duration-500 ${
+                            isFilled ? 'grayscale-0 opacity-100' : 'grayscale opacity-20'
+                          }`}
+                          sizes="28px"
+                        />
+                      </motion.div>
                     </motion.div>
                   );
                 })}
@@ -308,7 +322,7 @@ export default function CuentaPage() {
                   </span>
                 ) : (
                   <span>
-                    Te faltan <span className="font-semibold text-[#FF6B35]">{stampsRemaining} sellos</span> para tu premio
+                    Te faltan <span className="font-semibold text-[#FF6B35]">{stampsRemaining} Vladis</span> para tu premio
                   </span>
                 )}
               </span>

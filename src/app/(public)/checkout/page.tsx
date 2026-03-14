@@ -22,6 +22,7 @@ import { Button, Input, Badge } from '@/components/ui';
 import { useCartStore } from '@/stores/cart-store';
 import { useOrderStore } from '@/stores/order-store';
 import { useNotificationStore } from '@/stores/notification-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { formatPrice } from '@/lib/utils';
 import api from '@/lib/api';
 import type { DeliveryType, Address, OrderStatus } from '@/types';
@@ -57,6 +58,7 @@ export default function CheckoutPage() {
   const { items, couponCode, discount, subtotal, total, clear } = useCartStore();
   const { setActiveOrder } = useOrderStore();
   const { addNotification } = useNotificationStore();
+  const { isAuthenticated } = useAuthStore();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState(0);
@@ -70,6 +72,7 @@ export default function CheckoutPage() {
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '' });
 
   useEffect(() => {
     api.get('/addresses')
@@ -105,13 +108,18 @@ export default function CheckoutPage() {
       case 3:
         return selectedTimeSlot !== null;
       case 4:
-        return paymentMethod !== null;
+        if (paymentMethod === null) return false;
+        // Guest users must fill in their info
+        if (!isAuthenticated) {
+          return !!(guestInfo.name.trim() && guestInfo.email.trim() && guestInfo.phone.trim());
+        }
+        return true;
       case 5:
         return true;
       default:
         return false;
     }
-  }, [currentStep, deliveryType, selectedAddress, selectedTimeSlot, paymentMethod]);
+  }, [currentStep, deliveryType, selectedAddress, selectedTimeSlot, paymentMethod, isAuthenticated, guestInfo]);
 
   const goNext = () => {
     if (!canAdvance()) return;
@@ -130,7 +138,7 @@ export default function CheckoutPage() {
   const handleConfirmOrder = async () => {
     setIsSubmitting(true);
     try {
-      const res = await api.post('/orders', {
+      const orderPayload: Record<string, unknown> = {
         items: items.map((i) => ({
           productId: i.product?.id ?? null,
           name: i.name,
@@ -146,7 +154,14 @@ export default function CheckoutPage() {
         paymentMethod,
         notes,
         couponCode,
-      });
+      };
+
+      // Add guest info if not authenticated
+      if (!isAuthenticated) {
+        orderPayload.guestInfo = guestInfo;
+      }
+
+      const res = await api.post('/orders', orderPayload);
 
       const orderId = res.data.data?.id ?? `o-${Date.now()}`;
 
@@ -571,54 +586,102 @@ export default function CheckoutPage() {
               {/* Step 4: Payment */}
               {currentStep === 4 && (
                 <div>
+                  {/* Guest info form */}
+                  {!isAuthenticated && (
+                    <div className="mb-6">
+                      <h2 className="mb-4 text-xl font-bold text-[var(--text-primary)]">
+                        Tus datos
+                      </h2>
+                      <p className="mb-4 text-sm text-[var(--text-muted)]">
+                        Como no tenes cuenta, necesitamos tus datos para el pedido. Solo podes pagar con tarjeta.
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                          label="Nombre"
+                          placeholder="Tu nombre"
+                          value={guestInfo.name}
+                          onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                        />
+                        <Input
+                          label="Email"
+                          placeholder="tu@email.com"
+                          type="email"
+                          value={guestInfo.email}
+                          onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                        />
+                        <Input
+                          label="Telefono"
+                          placeholder="11-1234-5678"
+                          type="tel"
+                          value={guestInfo.phone}
+                          onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+                          className="sm:col-span-2"
+                        />
+                      </div>
+                      <div className="mt-3 rounded-lg bg-[#FF6B35]/5 p-3 text-xs text-[#FF6B35]">
+                        Registrate para pagar en efectivo y acceder a estampas y descuentos
+                      </div>
+                    </div>
+                  )}
+
                   <h2 className="mb-6 text-xl font-bold text-[var(--text-primary)]">
                     Como vas a pagar?
                   </h2>
 
                   <div className="flex flex-col gap-4">
-                    {[
-                      {
-                        id: 'cash',
-                        title: 'Efectivo',
-                        desc: 'Paga al recibir tu pedido',
-                        icon: '💵',
-                      },
-                      {
-                        id: 'card',
-                        title: 'Tarjeta de credito/debito',
-                        desc: 'Visa, Mastercard, Amex',
-                        icon: '💳',
-                      },
-                      {
-                        id: 'mercadopago',
-                        title: 'MercadoPago',
-                        desc: 'Paga con tu cuenta de MercadoPago',
-                        icon: '📱',
-                      },
-                      {
-                        id: 'transfer',
-                        title: 'Transferencia bancaria',
-                        desc: 'CBU/Alias al confirmar',
-                        icon: '🏦',
-                      },
-                    ].map((method) => (
-                      <motion.button
-                        key={method.id}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setPaymentMethod(method.id)}
-                        className={`flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
-                          paymentMethod === method.id
-                            ? 'border-[#FF6B35] bg-[#FF6B35]/5'
-                            : 'border-[var(--border-color)] hover:border-[#FF6B35]/40'
-                        }`}
-                      >
-                        <span className="text-2xl">{method.icon}</span>
-                        <div>
-                          <p className="font-semibold text-[var(--text-primary)]">{method.title}</p>
-                          <p className="text-sm text-[var(--text-muted)]">{method.desc}</p>
-                        </div>
-                      </motion.button>
-                    ))}
+                    {(() => {
+                      const allMethods = [
+                        {
+                          id: 'cash',
+                          title: 'Efectivo',
+                          desc: 'Paga al recibir tu pedido',
+                          icon: '💵',
+                          guestAllowed: false,
+                        },
+                        {
+                          id: 'card',
+                          title: 'Tarjeta de credito/debito',
+                          desc: 'Visa, Mastercard, Amex',
+                          icon: '💳',
+                          guestAllowed: true,
+                        },
+                        {
+                          id: 'mercadopago',
+                          title: 'MercadoPago',
+                          desc: 'Paga con tu cuenta de MercadoPago',
+                          icon: '📱',
+                          guestAllowed: true,
+                        },
+                        {
+                          id: 'transfer',
+                          title: 'Transferencia bancaria',
+                          desc: 'CBU/Alias al confirmar',
+                          icon: '🏦',
+                          guestAllowed: false,
+                        },
+                      ];
+                      const methods = isAuthenticated
+                        ? allMethods
+                        : allMethods.filter((m) => m.guestAllowed);
+                      return methods.map((method) => (
+                        <motion.button
+                          key={method.id}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setPaymentMethod(method.id)}
+                          className={`flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+                            paymentMethod === method.id
+                              ? 'border-[#FF6B35] bg-[#FF6B35]/5'
+                              : 'border-[var(--border-color)] hover:border-[#FF6B35]/40'
+                          }`}
+                        >
+                          <span className="text-2xl">{method.icon}</span>
+                          <div>
+                            <p className="font-semibold text-[var(--text-primary)]">{method.title}</p>
+                            <p className="text-sm text-[var(--text-muted)]">{method.desc}</p>
+                          </div>
+                        </motion.button>
+                      ));
+                    })()}
                   </div>
 
                   {/* Notes */}
@@ -694,6 +757,18 @@ export default function CheckoutPage() {
                               : 'Transferencia'}
                       </p>
                     </div>
+
+                    {/* Guest info */}
+                    {!isAuthenticated && guestInfo.name && (
+                      <div className="rounded-xl bg-[var(--bg-secondary)] p-4">
+                        <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
+                          <span>Datos del pedido</span>
+                        </div>
+                        <p className="mt-1 text-sm text-[var(--text-primary)]">
+                          {guestInfo.name} &middot; {guestInfo.email} &middot; {guestInfo.phone}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Notes */}
                     {notes && (

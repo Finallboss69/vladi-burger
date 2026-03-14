@@ -2,7 +2,7 @@
 
 import { type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Flame } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
@@ -23,8 +23,15 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="mb-8 flex flex-col items-center gap-3"
         >
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6B35] shadow-lg shadow-[#FF6B35]/30">
-              <Flame className="h-7 w-7 text-white" />
+            <div className="relative h-12 w-12 shrink-0">
+              <Image
+                src="/logo.png"
+                alt="Vladi Burger"
+                fill
+                className="object-contain"
+                sizes="48px"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import {
-  ArrowLeft, Gift, Stamp, PartyPopper, Ticket,
+  ArrowLeft, Gift, PartyPopper, Ticket,
 } from 'lucide-react';
 import { Button, Card, CardContent, Badge } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -122,9 +123,9 @@ export default function PuntosPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tarjeta de Sellos</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tarjeta de Vladis</h1>
             <p className="text-sm text-[var(--text-muted)]">
-              {config?.prizeDescription ?? 'Junta sellos y gana premios'}
+              {config?.prizeDescription ?? 'Junta tus Vladis y gana premios'}
             </p>
           </div>
         </motion.div>
@@ -133,9 +134,11 @@ export default function PuntosPage() {
           <motion.div variants={item}>
             <Card hover={false}>
               <CardContent className="p-8 text-center">
-                <Stamp className="mx-auto h-12 w-12 text-[var(--text-muted)] mb-3" />
+                <div className="relative mx-auto mb-3 h-12 w-12 opacity-40 grayscale">
+                  <Image src="/logo.png" alt="Vladi" fill className="object-contain" sizes="48px" />
+                </div>
                 <p className="text-[var(--text-secondary)]">
-                  El programa de sellos no esta disponible en este momento
+                  El programa de Vladis no esta disponible en este momento
                 </p>
               </CardContent>
             </Card>
@@ -148,23 +151,23 @@ export default function PuntosPage() {
                 <div className="bg-gradient-to-br from-[#FF6B35] to-[#D62828] p-6 text-white">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <p className="text-sm font-medium text-white/80">Tu progreso</p>
+                      <p className="text-sm font-medium text-white/80">Tus Vladis</p>
                       <p className="text-3xl font-black">
                         {filledStamps} / {required}
                       </p>
                     </div>
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-                      <Stamp className="h-7 w-7 text-white" />
+                    <div className="relative h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm p-1.5">
+                      <Image src="/logo.png" alt="Vladi" fill className="object-contain drop-shadow-lg" sizes="56px" />
                     </div>
                   </div>
                   <p className="text-sm text-white/70">
                     {stamps >= required
-                      ? 'Tenes suficientes sellos para canjear tu premio!'
-                      : `Te faltan ${required - stamps} ${required - stamps === 1 ? 'sello' : 'sellos'} para tu premio`}
+                      ? 'Tenes suficientes Vladis para canjear tu premio!'
+                      : `Te faltan ${required - stamps} ${required - stamps === 1 ? 'Vladi' : 'Vladis'} para tu premio`}
                   </p>
                 </div>
 
-                {/* Visual stamps grid */}
+                {/* Visual Vladis grid */}
                 <CardContent className="p-5">
                   <div className="grid grid-cols-5 gap-3">
                     {Array.from({ length: required }).map((_, i) => {
@@ -175,7 +178,7 @@ export default function PuntosPage() {
                           key={i}
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: i * 0.06, type: 'spring', stiffness: 300 }}
+                          transition={{ delay: i * 0.08, type: 'spring', stiffness: 300 }}
                           className={cn(
                             'relative flex aspect-square items-center justify-center rounded-xl border-2 transition-all',
                             isFilled
@@ -184,30 +187,41 @@ export default function PuntosPage() {
                             isPrize && !isFilled && 'border-[#F5CB5C] bg-[#F5CB5C]/5',
                           )}
                         >
-                          {isPrize ? (
-                            isFilled ? (
-                              <Gift className="h-6 w-6 text-[#FF6B35]" />
-                            ) : (
-                              <Gift className="h-6 w-6 text-[#F5CB5C]/60" />
-                            )
-                          ) : isFilled ? (
-                            <motion.div
-                              initial={{ rotate: -20, scale: 0 }}
-                              animate={{ rotate: 0, scale: 1 }}
-                              transition={{ delay: i * 0.06 + 0.1, type: 'spring' }}
-                            >
-                              <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#FF6B35]" fill="currentColor">
-                                <circle cx="12" cy="12" r="10" opacity="0.2" />
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
-                                <text x="12" y="16" textAnchor="middle" fontSize="10" fontWeight="bold" fill="currentColor">
-                                  V
-                                </text>
-                              </svg>
-                            </motion.div>
+                          {isPrize && !isFilled ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <Gift className="h-5 w-5 text-[#F5CB5C]/60" />
+                              <span className="text-[8px] font-bold text-[#F5CB5C]/60">PREMIO</span>
+                            </div>
                           ) : (
-                            <span className="text-sm font-bold text-[var(--text-muted)]">
-                              {i + 1}
-                            </span>
+                            <motion.div
+                              className="relative h-[70%] w-[70%]"
+                              initial={isFilled ? { scale: 0, rotate: -30 } : { scale: 1 }}
+                              animate={isFilled ? { scale: 1, rotate: 0 } : { scale: 1 }}
+                              transition={isFilled ? { delay: i * 0.08 + 0.15, type: 'spring', stiffness: 400, damping: 15 } : {}}
+                            >
+                              <Image
+                                src="/logo.png"
+                                alt={isFilled ? 'Vladi completado' : `Vladi ${i + 1}`}
+                                fill
+                                className={cn(
+                                  'object-contain transition-all duration-500',
+                                  isFilled
+                                    ? 'grayscale-0 opacity-100 drop-shadow-md'
+                                    : 'grayscale opacity-25',
+                                )}
+                                sizes="80px"
+                              />
+                              {isFilled && isPrize && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ delay: i * 0.08 + 0.3, type: 'spring' }}
+                                  className="absolute -right-1 -top-1"
+                                >
+                                  <Gift className="h-4 w-4 text-[#F5CB5C] drop-shadow-sm" />
+                                </motion.div>
+                              )}
+                            </motion.div>
                           )}
                         </motion.div>
                       );
@@ -304,7 +318,7 @@ export default function PuntosPage() {
                 <Card hover={false}>
                   <CardContent className="p-4 text-center">
                     <p className="text-2xl font-black text-[#FF6B35]">{stamps}</p>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Sellos acumulados</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Vladis juntados</p>
                   </CardContent>
                 </Card>
                 <Card hover={false}>
@@ -324,9 +338,9 @@ export default function PuntosPage() {
                   <div className="space-y-3">
                     {[
                       { step: '1', text: 'Hace tu pedido de burgers como siempre' },
-                      { step: '2', text: `Junta ${required} sellos con cada compra` },
+                      { step: '2', text: `Junta ${required} Vladis con cada compra` },
                       { step: '3', text: `Canjea tu premio: ${config.prizeName}` },
-                      { step: '4', text: 'Usa el cupon en tu proximo pedido' },
+                      { step: '4', text: 'Usa el cupon en tu proximo pedido (pedilo con una hamburguesa!)' },
                     ].map((s) => (
                       <div key={s.step} className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FF6B35]/10 text-sm font-bold text-[#FF6B35]">

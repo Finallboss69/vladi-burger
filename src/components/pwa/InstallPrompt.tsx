@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Flame } from 'lucide-react';
+import Image from 'next/image';
+import { Download, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -68,8 +69,14 @@ export function InstallPrompt() {
       >
         <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 shadow-2xl">
           {/* Icon */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6B35] text-white">
-            <Flame className="h-6 w-6" />
+          <div className="relative h-12 w-12 shrink-0">
+            <Image
+              src="/logo.png"
+              alt="Vladi Burger"
+              fill
+              className="object-contain"
+              sizes="48px"
+            />
           </div>
 
           {/* Text */}

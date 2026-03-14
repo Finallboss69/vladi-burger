@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getUserFromToken } from '@/lib/auth'
+import { getUserFromToken, hashPassword } from '@/lib/auth'
 import { sendOrderConfirmation } from '@/lib/email'
+import crypto from 'crypto'
 
 export async function GET(req: Request) {
   const user = await getUserFromToken(req.headers.get('authorization'))
@@ -66,12 +67,38 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getUserFromToken(req.headers.get('authorization'))
-  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  let user = await getUserFromToken(req.headers.get('authorization'))
 
   try {
     const body = await req.json()
-    const { items, couponCode, deliveryType, addressId, scheduledAt, notes } = body
+    const { items, couponCode, deliveryType, addressId, scheduledAt, notes, paymentMethod, guestInfo } = body
+
+    // Guest checkout: create or find guest user, only card/mercadopago allowed
+    if (!user) {
+      if (!guestInfo?.name || !guestInfo?.email || !guestInfo?.phone) {
+        return NextResponse.json({ error: 'Para pedir sin cuenta necesitas nombre, email y telefono' }, { status: 400 })
+      }
+      if (paymentMethod !== 'card' && paymentMethod !== 'mercadopago') {
+        return NextResponse.json({ error: 'Sin cuenta solo podes pagar con tarjeta' }, { status: 400 })
+      }
+
+      // Find existing user by email or create guest user
+      const existing = await prisma.user.findUnique({ where: { email: guestInfo.email } })
+      if (existing) {
+        user = existing
+      } else {
+        const randomPass = crypto.randomBytes(32).toString('hex')
+        user = await prisma.user.create({
+          data: {
+            name: guestInfo.name,
+            email: guestInfo.email,
+            phone: guestInfo.phone,
+            passwordHash: await hashPassword(randomPass),
+            role: 'CUSTOMER',
+          },
+        })
+      }
+    }
 
     // Calculate totals
     let subtotal = 0
@@ -91,6 +118,15 @@ export async function POST(req: Request) {
     }
 
     const total = subtotal - discount
+
+    // Coupon validation: can't make a free order with just a coupon
+    // Must buy at least one item — the coupon gives the second one free
+    if (couponCode && total <= 0) {
+      return NextResponse.json(
+        { error: 'Para usar el cupon tenes que pedir al menos una hamburguesa. El cupon te da la otra gratis!' },
+        { status: 400 },
+      )
+    }
 
     // Generate order number
     const lastOrder = await prisma.order.findFirst({ orderBy: { orderNumber: 'desc' } })

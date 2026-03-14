@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Flame, Instagram, MapPin, Clock, Phone, Heart } from 'lucide-react';
+import { Instagram, MapPin, Clock, Phone, Heart } from 'lucide-react';
 import { RESTAURANT } from '@/lib/config';
 
 const fadeInUp = {
@@ -19,8 +20,14 @@ export function Footer() {
           {/* Brand */}
           <motion.div {...fadeInUp} className="col-span-2 sm:col-span-1">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B35] text-white shadow-md shadow-[#FF6B35]/20">
-                <Flame className="h-6 w-6" />
+              <div className="relative h-10 w-10 shrink-0">
+                <Image
+                  src="/logo.png"
+                  alt="Vladi Burger"
+                  fill
+                  className="object-contain"
+                  sizes="40px"
+                />
               </div>
               <span className="text-xl font-bold text-[var(--text-primary)]">
                 {RESTAURANT.shortName}<span className="text-[#FF6B35]">.burger</span>

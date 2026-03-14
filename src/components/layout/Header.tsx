@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import {
   Menu, X, ShoppingCart, User, Sun, Moon,
-  ChefHat, Flame, UtensilsCrossed, Home, Truck,
+  ChefHat, UtensilsCrossed, Home, Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/stores/cart-store';
@@ -80,9 +81,16 @@ export function Header() {
             <motion.div
               whileHover={{ rotate: [0, -10, 10, 0] }}
               transition={{ duration: 0.5 }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B35] text-white shadow-lg shadow-[#FF6B35]/20"
+              className="relative h-10 w-10 shrink-0"
             >
-              <Flame className="h-6 w-6" />
+              <Image
+                src="/logo.png"
+                alt="Vladi Burger"
+                fill
+                className="object-contain"
+                sizes="40px"
+                priority
+              />
             </motion.div>
             <span className="text-xl font-bold text-[var(--text-primary)]">
               {RESTAURANT.shortName}<span className="text-[#FF6B35]">.burger</span>

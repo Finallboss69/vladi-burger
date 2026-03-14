@@ -31,7 +31,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       // Don't redirect if already on auth pages
       const path = window.location.pathname;
-      if (!path.startsWith('/login') && !path.startsWith('/registro')) {
+      if (!path.startsWith('/login') && !path.startsWith('/registro') && !path.startsWith('/checkout') && !path.startsWith('/carrito')) {
         localStorage.removeItem('vladi-token');
         window.location.href = '/login';
       }
